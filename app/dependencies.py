@@ -1,8 +1,12 @@
+import os
 from fastapi import HTTPException, status, Request
 
 
 def is_authenticated(request: Request) -> bool:
     """セッション認証状態を返す（共通ヘルパー）"""
+    # ポータル経由の場合は Caddy の forward_auth が認証済み
+    if os.environ.get("BEHIND_PORTAL") == "true" and request.headers.get("X-Portal-Role"):
+        return True
     return request.session.get("authenticated", False)
 
 
