@@ -5,63 +5,54 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}塾成績管理システム{% endblock %}</title>
     <base href="{{ base_href | default('/') }}">
+    <script>
+    (function(){var t=localStorage.getItem("portal-theme");if(!t)t=window.matchMedia&&window.matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light";document.documentElement.setAttribute("data-theme",t)})();
+    </script>
+
+    <!-- Portal Design System -->
+    <link rel="stylesheet" href="/portal-assets/portal.css">
 
     <!-- HTMX -->
     <script src="https://unpkg.com/htmx.org@1.9.10" integrity="sha384-D1Kt99CQMDuVetoL1lrYwg5t+9QdHe0NjP5+9Ngsy9SAJlsylVp4guJCOdKNLcO9" crossorigin="anonymous"></script>
 
-    <!-- CSS -->
+    <!-- App CSS -->
     <link rel="stylesheet" href="static/css/styles.css">
-
-    <style>
-        /* HTMX インジケーター */
-        .htmx-indicator {
-            display: none;
-        }
-        .htmx-request .htmx-indicator {
-            display: inline;
-            color: #0066cc;
-            font-weight: bold;
-            margin-left: 1rem;
-        }
-
-        /* HTMX リクエスト中のスタイル */
-        .htmx-request .htmx-indicator.loading {
-            display: inline-block;
-        }
-    </style>
 
     {% block extra_css %}{% endblock %}
 </head>
 <body>
-    <nav class="navbar">
-        <div class="nav-container">
-            <h1 class="nav-title">塾成績管理</h1>
-            <ul class="nav-menu">
+    <!-- Portal Navigation -->
+    <nav class="portal-nav">
+        <div class="portal-nav-inner">
+            <a href="/" class="portal-nav-brand">Yossy Portal</a>
+            <ul class="portal-nav-links">
+                <li><a href="/">ホーム</a></li>
                 <li><a href="admin">管理画面</a></li>
-                <li><a href="dashboard/s001">ダッシュボード</a></li>
-                <li><a href="upload">CSVアップロード</a></li>
-                <li><a href="/auth/logout" class="btn-logout">ログアウト</a></li>
+                <li><a href="dashboard">ダッシュボード</a></li>
+                <li><a href="upload">アップロード</a></li>
+                <li><a href="/auth/logout" class="portal-nav-logout">ログアウト</a></li>
             </ul>
+            <button class="portal-theme-toggle" aria-label="テーマ切替">&#9790;</button>
+            <button class="portal-hamburger" aria-label="メニュー" aria-expanded="false">
+                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 5h14a1 1 0 010 2H3a1 1 0 010-2zm0 4h14a1 1 0 010 2H3a1 1 0 010-2zm0 4h14a1 1 0 010 2H3a1 1 0 010-2z"/></svg>
+            </button>
         </div>
     </nav>
+    <div class="portal-mobile-menu">
+        <a href="/">ホーム</a>
+        <a href="admin">管理画面</a>
+        <a href="dashboard">ダッシュボード</a>
+        <a href="upload">アップロード</a>
+        <a href="/auth/logout" class="portal-nav-logout">ログアウト</a>
+    </div>
 
     <main class="main-content">
         {% block content %}{% endblock %}
     </main>
 
-    <footer class="footer">
-        <p>&copy; 2025 塾成績管理システム</p>
-    </footer>
+    <footer class="portal-footer">&copy; 2026 Yossy Portal</footer>
 
-    <script>
-        // HTMX 設定
-        document.body.addEventListener('htmx:xhr:loadstart', function(evt) {
-            console.log('リクエスト開始');
-        });
-        document.body.addEventListener('htmx:xhr:loadend', function(evt) {
-            console.log('リクエスト完了');
-        });
-    </script>
+    <script src="/portal-assets/portal-nav.js"></script>
 
     {% block extra_js %}{% endblock %}
 </body>

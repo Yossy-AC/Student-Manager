@@ -1,18 +1,8 @@
-/* ===== リセット・基本スタイル ===== */
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
+/* ===== Student Manager — App-specific styles ===== */
+/* Uses CSS variables from /portal-assets/portal.css */
 
 body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: #333;
-    line-height: 1.6;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
+    background: var(--p-bg-secondary, #f5f5f7);
 }
 
 .main-content {
@@ -26,76 +16,24 @@ body {
     padding: 20px;
 }
 
-/* ===== ナビゲーションバー ===== */
-.navbar {
-    background: white;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    margin-bottom: 20px;
-}
-
-.nav-container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 15px 20px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.nav-title {
-    font-size: 1.5rem;
-    color: #667eea;
-    margin: 0;
-}
-
-.nav-menu {
-    list-style: none;
-    display: flex;
-    gap: 1.5rem;
-    align-items: center;
-}
-
-.nav-menu a {
-    color: #666;
-    text-decoration: none;
-    font-size: 0.95rem;
-    transition: color 0.3s ease;
-}
-
-.nav-menu a:hover {
-    color: #667eea;
-}
-
-.btn-logout {
-    background: #f44336;
-    color: white !important;
-    padding: 0.5rem 1rem;
-    border-radius: 4px;
-}
-
-.btn-logout:hover {
-    background: #d32f2f;
-    color: white;
-}
-
 /* ===== ヘッダー ===== */
 header {
-    background: white;
+    background: var(--p-surface, #fff);
     padding: 30px 20px;
-    border-radius: 10px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border-radius: var(--p-radius, 12px);
+    border: 0.5px solid var(--p-border-light, #e8e8ed);
     margin-bottom: 30px;
     text-align: center;
 }
 
 header h1 {
-    color: #667eea;
+    color: var(--p-text, #1d1d1f);
     font-size: 28px;
     margin-bottom: 10px;
 }
 
 header .subtitle {
-    color: #666;
+    color: var(--p-text-secondary, #6e6e73);
     font-size: 14px;
 }
 
@@ -105,48 +43,49 @@ section {
 }
 
 section h2 {
-    color: white;
+    color: var(--p-text, #1d1d1f);
     font-size: 20px;
     margin-bottom: 15px;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    font-weight: 600;
 }
 
 /* ===== ボタン ===== */
 .btn {
     display: inline-block;
-    padding: 0.75rem 1.5rem;
+    padding: 0.6rem 1.25rem;
     border: none;
-    border-radius: 4px;
-    font-size: 1rem;
+    border-radius: var(--p-radius-sm, 8px);
+    font-size: 0.9rem;
+    font-weight: 500;
     cursor: pointer;
     transition: all 0.3s ease;
     text-decoration: none;
 }
 
 .btn-primary {
-    background: #667eea;
-    color: white;
+    background: var(--p-accent, #0071e3);
+    color: var(--p-accent-text, #fff);
 }
 
 .btn-primary:hover {
-    background: #5568d3;
+    background: var(--p-accent-hover, #0077ed);
 }
 
 .btn-secondary {
-    background: #999;
-    color: white;
+    background: var(--p-text-tertiary, #86868b);
+    color: #fff;
 }
 
 .btn-secondary:hover {
-    background: #777;
+    opacity: 0.85;
 }
 
 /* ===== カード ===== */
 .card {
-    background: white;
+    background: var(--p-surface, #fff);
     padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border-radius: var(--p-radius, 12px);
+    border: 0.5px solid var(--p-border-light, #e8e8ed);
 }
 
 .card p {
@@ -160,17 +99,17 @@ section h2 {
 
 /* ===== チェックテスト成績 ===== */
 .grades-section {
-    background: white;
+    background: var(--p-surface, #fff);
     padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border-radius: var(--p-radius, 12px);
+    border: 0.5px solid var(--p-border-light, #e8e8ed);
 }
 
 .chart-container {
     margin-bottom: 20px;
-    background: #f9f9f9;
+    background: var(--p-bg-secondary, #f5f5f7);
     padding: 15px;
-    border-radius: 8px;
+    border-radius: var(--p-radius-sm, 8px);
     height: 300px;
 }
 
@@ -182,83 +121,91 @@ section h2 {
     width: 100%;
     border-collapse: collapse;
     margin-top: 15px;
+    font-size: 0.875rem;
 }
 
 .grades-table th {
-    background: #667eea;
-    color: white;
-    padding: 12px;
+    background: var(--p-bg-secondary, #f5f5f7);
+    color: var(--p-text-tertiary, #86868b);
+    padding: 10px 12px;
     text-align: left;
     font-weight: 600;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    border-bottom: 1px solid var(--p-border-light, #e8e8ed);
 }
 
 .grades-table td {
-    padding: 12px;
-    border-bottom: 1px solid #ddd;
+    padding: 10px 12px;
+    border-bottom: 0.5px solid var(--p-border-light, #e8e8ed);
+    color: var(--p-text, #1d1d1f);
 }
 
 .grades-table tr:hover {
-    background: #f5f5f5;
+    background: var(--p-surface-hover, #f5f5f7);
 }
 
 .grades-table .positive {
-    color: #4CAF50;
-    font-weight: bold;
+    color: var(--p-success, #34c759);
+    font-weight: 600;
 }
 
 .grades-table .negative {
-    color: #f44336;
-    font-weight: bold;
+    color: var(--p-danger, #ff3b30);
+    font-weight: 600;
 }
 
 /* ===== 比較セクション ===== */
 .comparison-section {
-    background: white;
+    background: var(--p-surface, #fff);
     padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border-radius: var(--p-radius, 12px);
+    border: 0.5px solid var(--p-border-light, #e8e8ed);
 }
 
 .difference {
     padding: 5px 10px;
     border-radius: 5px;
-    background: #f0f0f0;
+    background: var(--p-bg-secondary, #f5f5f7);
 }
 
 .difference.positive {
-    background: #e8f5e9;
-    color: #2e7d32;
+    background: rgba(52, 199, 89, 0.1);
+    color: var(--p-success, #34c759);
 }
 
 .difference.negative {
-    background: #ffebee;
-    color: #c62828;
+    background: rgba(255, 59, 48, 0.1);
+    color: var(--p-danger, #ff3b30);
 }
 
 /* ===== AIアドバイス ===== */
 .advice-section {
-    background: white;
+    background: var(--p-surface, #fff);
     padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border-radius: var(--p-radius, 12px);
+    border: 0.5px solid var(--p-border-light, #e8e8ed);
 }
 
 .advice-box {
-    border-left: 4px solid #667eea;
-    background: #f8f9fa;
+    border-left: 4px solid var(--p-accent, #0071e3);
+    background: var(--p-bg-secondary, #f5f5f7);
+    padding: 1rem;
+    border-radius: 0 var(--p-radius-sm, 8px) var(--p-radius-sm, 8px) 0;
 }
 
 .advice-box p {
     line-height: 1.8;
-    color: #555;
+    color: var(--p-text-secondary, #6e6e73);
 }
 
 /* ===== 出席状況 ===== */
 .attendance-section {
-    background: white;
+    background: var(--p-surface, #fff);
     padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border-radius: var(--p-radius, 12px);
+    border: 0.5px solid var(--p-border-light, #e8e8ed);
 }
 
 /* ===== フォーム ===== */
@@ -270,26 +217,29 @@ section h2 {
     display: block;
     margin-bottom: 0.5rem;
     font-weight: 500;
-    color: #333;
+    color: var(--p-text, #1d1d1f);
 }
 
 .form-group input,
 .form-group select,
 .form-group textarea {
     width: 100%;
-    padding: 0.75rem;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    font-size: 1rem;
+    padding: 0.6rem 0.85rem;
+    border: 1px solid var(--p-border, #d2d2d7);
+    border-radius: var(--p-radius-sm, 8px);
+    font-size: 0.95rem;
     font-family: inherit;
+    color: var(--p-text, #1d1d1f);
+    background: var(--p-surface, #fff);
+    transition: all 0.3s ease;
 }
 
 .form-group input:focus,
 .form-group select:focus,
 .form-group textarea:focus {
     outline: none;
-    border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    border-color: var(--p-accent, #0071e3);
+    box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.15);
 }
 
 /* ===== HTMX インジケーター ===== */
@@ -299,30 +249,19 @@ section h2 {
 
 .htmx-request .htmx-indicator {
     display: inline;
-    color: #0066cc;
-    font-weight: bold;
+    color: var(--p-accent, #0071e3);
+    font-weight: 500;
     margin-left: 1rem;
 }
 
 /* ===== エラーメッセージ ===== */
 .error-message {
-    color: #d32f2f;
+    color: var(--p-danger, #ff3b30);
     font-size: 0.9rem;
     padding: 0.75rem;
-    background: #ffebee;
-    border-radius: 4px;
+    background: rgba(255, 59, 48, 0.08);
+    border-radius: var(--p-radius-sm, 8px);
     margin-bottom: 1rem;
-}
-
-/* ===== フッター ===== */
-.footer {
-    background: rgba(255, 255, 255, 0.1);
-    color: white;
-    text-align: center;
-    padding: 20px;
-    margin-top: 40px;
-    border-radius: 10px;
-    font-size: 14px;
 }
 
 /* ===== レスポンシブ ===== */
@@ -346,21 +285,5 @@ section h2 {
     .grades-table th,
     .grades-table td {
         padding: 8px;
-    }
-
-    .nav-container {
-        flex-direction: column;
-        gap: 1rem;
-    }
-
-    .nav-menu {
-        flex-direction: column;
-        gap: 0.5rem;
-        width: 100%;
-    }
-
-    .nav-menu a {
-        width: 100%;
-        text-align: center;
     }
 }

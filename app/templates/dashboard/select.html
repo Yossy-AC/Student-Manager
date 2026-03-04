@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}生徒ダッシュボード - 生徒ID入力{% endblock %}
+
+{% block content %}
+<div class="select-container">
+    <h1>成績ダッシュボード</h1>
+    <p>生徒IDを入力してください</p>
+
+    <form class="select-form" onsubmit="goToDashboard(event)">
+        <label for="studentIdInput" class="sr-only">生徒ID</label>
+        <input type="text" id="studentIdInput" class="portal-input" placeholder="例: s001" pattern="[a-zA-Z0-9_-]+" required autofocus>
+        <button type="submit" class="portal-btn portal-btn-primary">表示</button>
+    </form>
+</div>
+
+<style>
+    .select-container {
+        max-width: 400px;
+        margin: 4rem auto;
+        text-align: center;
+    }
+    .select-container h1 {
+        margin-bottom: 0.5rem;
+        color: var(--p-text);
+    }
+    .select-container p {
+        color: var(--p-text-secondary);
+        margin-bottom: 2rem;
+    }
+    .select-form {
+        display: flex;
+        gap: 0.5rem;
+    }
+    .select-form .portal-input {
+        flex: 1;
+    }
+</style>
+
+<script>
+function goToDashboard(e) {
+    e.preventDefault();
+    const id = document.getElementById('studentIdInput').value.trim();
+    if (id && /^[a-zA-Z0-9_-]+$/.test(id)) {
+        window.location.href = 'dashboard/' + encodeURIComponent(id);
+    }
+}
+</script>
+{% endblock %}

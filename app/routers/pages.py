@@ -38,6 +38,16 @@ async def admin_page(request: Request):
     return templates.TemplateResponse("admin/index.html", {"request": request, "base_href": _base_href(request)})
 
 
+@router.get("/dashboard", response_class=HTMLResponse)
+async def dashboard_select(request: Request):
+    if not is_authenticated(request):
+        return RedirectResponse(url="/login", status_code=302)
+    return templates.TemplateResponse(
+        "dashboard/select.html",
+        {"request": request, "base_href": _base_href(request)}
+    )
+
+
 @router.get("/dashboard/{student_id}", response_class=HTMLResponse)
 async def dashboard_page(request: Request, student_id: str):
     if not is_authenticated(request):
