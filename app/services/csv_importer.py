@@ -129,7 +129,7 @@ def match_students_to_ids(db: Session, students: List[Dict]) -> List[Tuple[Dict,
             id_num = int(s.id.replace('s', ''))
             if id_num > max_id:
                 max_id = id_num
-        except:
+        except (ValueError, AttributeError):
             pass
 
     for student in students:
