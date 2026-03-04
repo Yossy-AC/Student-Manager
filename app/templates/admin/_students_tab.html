@@ -5,7 +5,7 @@
     <details style="margin-bottom:2rem; background:white; padding:1.5rem; border-radius:8px;">
         <summary style="cursor:pointer; font-weight:bold; color:#667eea; user-select:none;">+ 新規生徒を追加</summary>
 
-        <form hx-post="/api/students"
+        <form hx-post="api/students"
               hx-target="#students-list"
               hx-swap="innerHTML"
               style="margin-top:1.5rem;">
@@ -56,7 +56,7 @@
     </details>
 
     <!-- 生徒一覧 -->
-    <div id="students-list" hx-get="/api/students" hx-trigger="load">
+    <div id="students-list" hx-get="api/students" hx-trigger="load">
         <p style="color:#999;">生徒一覧を読み込み中...</p>
     </div>
 </div>

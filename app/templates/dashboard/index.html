@@ -14,7 +14,7 @@
     <!-- 成績テーブル -->
     <section class="grades-section">
         <h2>チェックテスト成績推移</h2>
-        <div hx-get="/api/grades/student/{{ student_id }}"
+        <div hx-get="api/grades/student/{{ student_id }}"
              hx-trigger="load"
              hx-swap="innerHTML">
             <p class="loading">読み込み中...</p>
@@ -24,7 +24,7 @@
     <!-- クラス比較 -->
     <section class="comparison-section">
         <h2>クラス平均との比較</h2>
-        <div hx-get="/api/grades/comparison/{{ student_id }}"
+        <div hx-get="api/grades/comparison/{{ student_id }}"
              hx-trigger="load"
              hx-swap="innerHTML">
             <p class="loading">計算中...</p>
@@ -34,7 +34,7 @@
     <!-- アドバイス -->
     <section class="advice-section">
         <h2>学習アドバイス</h2>
-        <div hx-get="/api/grades/advice/{{ student_id }}"
+        <div hx-get="api/grades/advice/{{ student_id }}"
              hx-trigger="load"
              hx-swap="innerHTML">
             <p class="loading">分析中...</p>
@@ -44,7 +44,7 @@
     <!-- 出席状況 -->
     <section class="attendance-section">
         <h2>出席状況</h2>
-        <div hx-get="/api/attendance/student/{{ student_id }}"
+        <div hx-get="api/attendance/student/{{ student_id }}"
              hx-trigger="load"
              hx-swap="innerHTML">
             <p class="loading">読み込み中...</p>

@@ -1,7 +1,7 @@
 <div class="grades-tab">
     <h2>成績入力</h2>
 
-    <form hx-post="/api/grades"
+    <form hx-post="api/grades"
           hx-target="#recent-grades-table"
           hx-swap="innerHTML"
           style="background: white; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem;">
@@ -11,11 +11,11 @@
             <div class="form-group">
                 <label>講座を選択</label>
                 <select name="class_id" required
-                        hx-get="/api/classes//students"
+                        hx-get="api/classes//students"
                         hx-trigger="change"
                         hx-target="#student-select-container"
                         style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px;"
-                        onchange="this.setAttribute('hx-get', '/api/classes/' + this.value + '/students')">
+                        onchange="this.setAttribute('hx-get', 'api/classes/' + this.value + '/students')">
                     <option value="">選択してください</option>
                     <option value="c001">高3英語@難関大</option>
                     <option value="c002">高2数学基礎</option>
@@ -77,7 +77,7 @@
     </form>
 
     <h3>最近の成績入力</h3>
-    <div id="recent-grades-table" hx-get="/api/grades?limit=5" hx-trigger="load">
+    <div id="recent-grades-table" hx-get="api/grades?limit=5" hx-trigger="load">
         <p style="color: #999;">データを読み込み中...</p>
     </div>
 </div>
