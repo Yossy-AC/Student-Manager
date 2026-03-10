@@ -142,8 +142,13 @@ scripts/import_json.py   # data/*.json → SQLite 移行スクリプト
 ```
 SECRET_KEY=your-secret-key-here
 ADMIN_PASSWORD=your-admin-password-here
-DATABASE_URL=sqlite:///./student_manager.db
+DATABASE_URL=sqlite:///./data/student_manager.db
 ```
+
+**data/フォルダ**:
+- OneDriveへのシンボリックリンク（`Dev/setup.sh` で作成）
+- `student_manager.db` を複数PC間で共有。同時起動禁止。
+- セットアップ: `bash setup.sh <OneDriveのDO_NOT_CHANGE_NAMEパス>`（Dev/で1回実行）
 
 **Windows での起動注意**:
 - `--reload` フラグは Windows で multiprocessing エラーが発生する場合あり

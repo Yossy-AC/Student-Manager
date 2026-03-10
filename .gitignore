@@ -13,6 +13,7 @@ __pycache__/
 *.egg-info/
 *.pyc
 
-# DB・一時ファイル
+# DB（OneDrive symlink）
 student_manager.db
+data/student_manager.db
 server.pid
