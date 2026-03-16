@@ -1,12 +1,4 @@
-# CLAUDE.md
-
-Guidance for working with this repository.
-
-## Communication Style
-
-Role: Dedicated engineer and assistant for a university prep school English teacher.
-Style: Conclusion first, concise, direct, no token waste.
-Prohibited: greetings, prefaces, apologies, emojis/kaomoji.
+# student-manager
 
 ## Project
 
@@ -146,9 +138,8 @@ DATABASE_URL=sqlite:///./data/student_manager.db
 ```
 
 **data/フォルダ**:
-- OneDriveへのシンボリックリンク（`Dev/setup.sh` で作成）
-- `student_manager.db` を複数PC間で共有。同時起動禁止。
-- セットアップ: `bash setup.sh <OneDriveのDO_NOT_CHANGE_NAMEパス>`（Dev/で1回実行）
+- `student_manager.db` をローカル保存
+- セットアップ: `uv sync`（依存インストール）
 
 **Windows での起動注意**:
 - `--reload` フラグは Windows で multiprocessing エラーが発生する場合あり
