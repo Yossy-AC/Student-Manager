@@ -13,6 +13,20 @@
     .score-input { width: 50px; text-align: center; padding: 2px; }
     .review-table { font-size: 0.85rem; }
     .review-table th, .review-table td { padding: 0.4rem 0.5rem; white-space: nowrap; }
+    .debug-row td { padding: 0.5rem; background: var(--p-bg-secondary, #f8f9fa); }
+    .debug-images { display: flex; gap: 1rem; flex-wrap: wrap; }
+    .debug-images figure { margin: 0; flex: 1; min-width: 200px; max-width: 600px; }
+    .debug-images img { width: 100%; border: 1px solid var(--p-border); border-radius: var(--p-radius-sm); cursor: pointer; }
+    .debug-images figcaption { font-size: 0.75rem; color: var(--p-text-muted); text-align: center; margin-top: 0.25rem; }
+    .debug-toggle { cursor: pointer; color: var(--p-accent); font-size: 0.8rem; text-decoration: underline; }
+    .debug-legend { font-size: 0.75rem; color: var(--p-text-muted); margin-bottom: 0.5rem; }
+    .debug-legend span { display: inline-block; width: 12px; height: 12px; border-radius: 2px; vertical-align: middle; margin-right: 3px; }
+    .debug-legend .leg-blue { border: 2px solid #0000ff; }
+    .debug-legend .leg-red { background: rgba(220,50,50,0.3); border: 1px solid #dc3232; }
+    .debug-legend .leg-green { background: rgba(50,200,50,0.3); border: 1px solid #32c832; }
+    .img-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 1000; align-items: center; justify-content: center; cursor: pointer; }
+    .img-modal.active { display: flex; }
+    .img-modal img { max-width: 95vw; max-height: 95vh; object-fit: contain; }
 </style>
 {% endblock %}
 
@@ -37,6 +51,7 @@
                 {% endfor %}
                 <th>合計</th>
                 <th>フラグ</th>
+                <th>診断</th>
             </tr>
         </thead>
         <tbody>
@@ -67,6 +82,17 @@
                     {% if p.total_mark is not none %}{{ p.total_mark }}{% else %}-{% endif %}
                 </td>
                 <td>{{ p.page_flag }}</td>
+                <td><span class="debug-toggle" onclick="toggleDebug({{ session.id }}, {{ p.page_number }})">画像</span></td>
+            </tr>
+            <tr class="debug-row" id="debug-row-{{ p.page_number }}" style="display: none;">
+                <td colspan="100">
+                    <div class="debug-legend">
+                        <span class="leg-blue"></span>テーブル検出範囲
+                        <span class="leg-red" style="margin-left: 0.5rem;"></span>マークあり
+                        <span class="leg-green" style="margin-left: 0.5rem;"></span>マークなし
+                    </div>
+                    <div class="debug-images" id="debug-images-{{ p.page_number }}"></div>
+                </td>
             </tr>
             {% endfor %}
         </tbody>
@@ -129,6 +155,44 @@ async function saveScore(scoreId, input) {
         td.textContent = val === '' ? '-' : val;
         showToast('保存に失敗しました', 'error');
     }
+}
+
+function toggleDebug(sessionId, pageNum) {
+    var row = document.getElementById('debug-row-' + pageNum);
+    var container = document.getElementById('debug-images-' + pageNum);
+    if (row.style.display === 'none') {
+        row.style.display = '';
+        if (!container.dataset.loaded) {
+            var pad = String(pageNum).padStart(3, '0');
+            container.innerHTML =
+                '<figure>' +
+                '  <img src="checktest/api/scan/debug/' + sessionId + '/' + pageNum + '/sheet" alt="sheet" onclick="showModal(this.src)" onerror="this.parentElement.innerHTML=\'<p class=text-muted>診断画像なし（「診断画像を生成」にチェックを入れて再アップロードしてください）</p>\'">' +
+                '  <figcaption>クロップ後 (page_' + pad + '_sheet)</figcaption>' +
+                '</figure>' +
+                '<figure>' +
+                '  <img src="checktest/api/scan/debug/' + sessionId + '/' + pageNum + '/detected" alt="detected" onclick="showModal(this.src)" onerror="this.parentElement.innerHTML=\'<p class=text-muted>診断画像なし</p>\'">' +
+                '  <figcaption>検出結果 (page_' + pad + '_detected)</figcaption>' +
+                '</figure>';
+            container.dataset.loaded = '1';
+        }
+    } else {
+        row.style.display = 'none';
+    }
+}
+
+function showModal(src) {
+    var modal = document.getElementById('img-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'img-modal';
+        modal.className = 'img-modal';
+        modal.innerHTML = '<img>';
+        modal.addEventListener('click', function() { modal.classList.remove('active'); });
+        document.addEventListener('keydown', function(e) { if (e.key === 'Escape') modal.classList.remove('active'); });
+        document.body.appendChild(modal);
+    }
+    modal.querySelector('img').src = src;
+    modal.classList.add('active');
 }
 
 // 生徒マッチング

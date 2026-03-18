@@ -72,31 +72,26 @@ def main() -> None:
         f"大問数: {len(config['questions'])} / 満点: {config['total_max']} 点"
     )
 
-    # PDF → 画像
+    debug_dir = "debug" if args.debug else None
+
+    # 各ページ処理（1ページずつ読み込み・処理して省メモリ）
+    results = []
     try:
-        images = pdf_to_images(args.pdf, dpi=args.dpi, page_list=args.pages)
+        for page_num, img in pdf_to_images(args.pdf, dpi=args.dpi, page_list=args.pages):
+            try:
+                result = process_page(
+                    img, config, page_num,
+                    thresh=args.thresh,
+                    no_crop=args.no_crop,
+                    debug_dir=debug_dir,
+                )
+            except Exception as e:
+                log.error(f"ページ {page_num} 処理エラー: {e}", exc_info=True)
+                result = fail_result(page_num, len(config["questions"]))
+            results.append(result)
     except Exception as e:
         log.error(f"PDF 読み込みエラー: {e}")
         sys.exit(1)
-
-    debug_dir = "debug" if args.debug else None
-
-    # 各ページ処理
-    results = []
-    page_offset = min(args.pages) if args.pages else 1
-    for i, img in enumerate(images):
-        page_num = args.pages[i] if args.pages else page_offset + i
-        try:
-            result = process_page(
-                img, config, page_num,
-                thresh=args.thresh,
-                no_crop=args.no_crop,
-                debug_dir=debug_dir,
-            )
-        except Exception as e:
-            log.error(f"ページ {page_num} 処理エラー: {e}", exc_info=True)
-            result = fail_result(page_num, len(config["questions"]))
-        results.append(result)
 
     if not results:
         log.error("処理結果がありません")

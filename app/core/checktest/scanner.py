@@ -12,17 +12,25 @@ from .constants import DEFAULT_DPI
 log = logging.getLogger(__name__)
 
 
+def pdf_page_count(pdf_path: str) -> int:
+    """PDF の総ページ数を返す"""
+    doc = fitz.open(pdf_path)
+    count = len(doc)
+    doc.close()
+    return count
+
+
 def pdf_to_images(
     pdf_path: str,
     dpi: int = DEFAULT_DPI,
     page_list: Optional[list] = None,
-) -> list:
-    """PDF 各ページを numpy 配列 (RGB) に変換して返す（PyMuPDF 使用）"""
+):
+    """PDF 各ページを (page_num, numpy配列RGB) で yield する（省メモリ）"""
     log.info(f"PDF 変換: {pdf_path} @ {dpi}dpi")
     doc = fitz.open(pdf_path)
     scale = dpi / 72.0
     mat = fitz.Matrix(scale, scale)
-    images = []
+    count = 0
     for i, page in enumerate(doc):
         page_num_1based = i + 1
         if page_list and page_num_1based not in page_list:
@@ -30,11 +38,13 @@ def pdf_to_images(
         pix = page.get_pixmap(matrix=mat)
         img = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.height, pix.width, pix.n)
         if pix.n == 4:   # RGBA → RGB
-            img = img[:, :, :3]
-        images.append(img)
+            img = img[:, :, :3].copy()
+        else:
+            img = img.copy()
+        count += 1
+        yield page_num_1based, img
     doc.close()
-    log.info(f"  {len(images)} ページ読み込み完了")
-    return images
+    log.info(f"  {count} ページ処理完了")
 
 
 def get_score_sheet(img: np.ndarray, no_crop: bool = False) -> np.ndarray:

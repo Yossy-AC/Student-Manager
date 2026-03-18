@@ -20,13 +20,44 @@ def _crop_cell(img: np.ndarray, x: int, y: int, w: int, h: int, margin: int = 4)
     return img[y1:y2, x1:x2]
 
 
-def is_marked(cell_rgb: np.ndarray, threshold: float) -> bool:
-    """黒ピクセル占有率が threshold を超えるか判定"""
+def _cell_ratio(cell_rgb: np.ndarray) -> float:
+    """セル内の黒ピクセル占有率を返す"""
     if cell_rgb.size == 0:
-        return False
+        return 0.0
     gray = cv2.cvtColor(cell_rgb, cv2.COLOR_RGB2GRAY) if len(cell_rgb.shape) == 3 else cell_rgb
     _, bw = cv2.threshold(gray, 128, 255, cv2.THRESH_BINARY_INV)
-    return (bw.sum() / (255 * bw.size)) > threshold
+    return float(bw.sum() / (255 * bw.size))
+
+
+def is_marked(cell_rgb: np.ndarray, threshold: float) -> bool:
+    """黒ピクセル占有率が threshold を超えるか判定"""
+    return _cell_ratio(cell_rgb) > threshold
+
+
+def _find_marked_cells(ratios: list[float], thresh: float) -> list[int]:
+    """
+    セル比率リストからマークされたセルを特定する。
+    固定閾値で検出し、見つからない場合は適応的閾値（中央値の2.5倍）でフォールバック。
+    """
+    # 固定閾値で検出
+    marked = [i for i, r in enumerate(ratios) if r > thresh]
+    if marked:
+        return marked
+
+    # 適応的閾値: 中央値の2.5倍かつ最低0.08
+    if not ratios:
+        return []
+    median = sorted(ratios)[len(ratios) // 2]
+    adaptive_thresh = max(median * 2.5, 0.08)
+    marked = [i for i, r in enumerate(ratios) if r > adaptive_thresh]
+
+    # 適応的検出で2つ以上見つかった場合、最大値のみ採用（隣接セルへのはみ出し対策）
+    if len(marked) >= 2:
+        max_ratio = max(ratios[i] for i in marked)
+        # 最大値の70%未満のものは除外
+        marked = [i for i in marked if ratios[i] >= max_ratio * 0.7]
+
+    return marked
 
 
 def detect_scores(
@@ -57,7 +88,7 @@ def detect_scores(
 
     debug_img = img.copy() if debug_path else None
     if debug_img is not None:
-        cv2.rectangle(debug_img, (tx, ty), (tx + tw, ty + th), (0, 0, 255), 3)
+        cv2.rectangle(debug_img, (tx, ty), (tx + tw, ty + th), (255, 0, 0), 3)
 
     scores: list = []
     flags: list = []
@@ -68,54 +99,82 @@ def detect_scores(
         row1_y = block_y
         row2_y = block_y + int(row_h)
 
-        marked: list = []
-
-        # Row 1: 値 0 〜 min(10, max_score)
+        # Row 1: 値 0 〜 min(10, max_score) の比率を収集
         n_row1 = min(N_VALUE_COLS, max_score + 1)
+        row1_ratios = []
+        row1_coords = []
         for ci in range(n_row1):
             cx = tx + label_w + int(ci * cell_w)
             cell = _crop_cell(img, cx, row1_y, int(cell_w), int(row_h))
-            hit = is_marked(cell, thresh)
-            if hit:
-                marked.append(ci)
-            if debug_img is not None:
+            row1_ratios.append(_cell_ratio(cell))
+            row1_coords.append(cx)
+
+        # Row 2: 値 11 〜 max_score の比率を収集
+        row2_ratios = []
+        row2_coords = []
+        if max_score > 10:
+            n_row2 = max_score - 10
+            for ci in range(n_row2):
+                cx = tx + label_w + int(ci * cell_w)
+                cell = _crop_cell(img, cx, row2_y, int(cell_w), int(row_h))
+                row2_ratios.append(_cell_ratio(cell))
+                row2_coords.append(cx)
+
+        # 全セルの比率を結合してマーク検出
+        all_ratios = row1_ratios + row2_ratios
+        marked_indices = _find_marked_cells(all_ratios, thresh)
+
+        # インデックスを値に変換
+        marked_values = []
+        for idx in marked_indices:
+            if idx < len(row1_ratios):
+                marked_values.append(idx)  # Row 1: 値 = インデックス
+            else:
+                marked_values.append(11 + (idx - len(row1_ratios)))  # Row 2: 値 11+
+
+        # デバッグ画像描画
+        if debug_img is not None:
+            for ci in range(n_row1):
+                cx = row1_coords[ci]
+                hit = ci in marked_indices
                 color = (220, 50, 50) if hit else (50, 200, 50)
                 cv2.rectangle(
                     debug_img,
                     (cx, row1_y),
                     (cx + int(cell_w), row1_y + int(row_h)),
-                    color, 1,
+                    color, 2 if hit else 1,
                 )
+                # 比率テキスト
+                ratio_text = f"{row1_ratios[ci]:.2f}"
+                cv2.putText(debug_img, ratio_text, (cx + 2, row1_y + 15),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.35, color, 1)
 
-        # Row 2: 値 11 〜 max_score（max_score > 10 のとき）
-        if max_score > 10:
-            n_row2 = max_score - 10
-            for ci in range(n_row2):
-                val = 11 + ci
-                cx = tx + label_w + int(ci * cell_w)
-                cell = _crop_cell(img, cx, row2_y, int(cell_w), int(row_h))
-                hit = is_marked(cell, thresh)
-                if hit:
-                    marked.append(val)
-                if debug_img is not None:
-                    color = (220, 50, 50) if hit else (50, 200, 50)
-                    cv2.rectangle(
-                        debug_img,
-                        (cx, row2_y),
-                        (cx + int(cell_w), row2_y + int(row_h)),
-                        color, 1,
-                    )
+            for ci in range(len(row2_ratios)):
+                cx = row2_coords[ci]
+                idx = len(row1_ratios) + ci
+                hit = idx in marked_indices
+                color = (220, 50, 50) if hit else (50, 200, 50)
+                cv2.rectangle(
+                    debug_img,
+                    (cx, row2_y),
+                    (cx + int(cell_w), row2_y + int(row_h)),
+                    color, 2 if hit else 1,
+                )
+                ratio_text = f"{row2_ratios[ci]:.2f}"
+                cv2.putText(debug_img, ratio_text, (cx + 2, row2_y + 15),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.35, color, 1)
 
-        if len(marked) == 0:
+        # スコア判定
+        if len(marked_values) == 0:
             scores.append(0)
             flags.append("")
-        elif len(marked) == 1:
-            scores.append(marked[0])
+        elif len(marked_values) == 1:
+            scores.append(marked_values[0])
             flags.append("")
         else:
             scores.append(None)
             flags.append("複数塗り")
-            log.warning(f"  大問{qi + 1} ({q['label']}): 複数塗り {marked}")
+            log.warning(f"  大問{qi + 1} ({q['label']}): 複数塗り {marked_values}")
 
     if debug_path and debug_img is not None:
         os.makedirs(os.path.dirname(os.path.abspath(debug_path)), exist_ok=True)

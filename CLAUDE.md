@@ -14,7 +14,8 @@
 - Backend: FastAPI + Uvicorn
 - Frontend: HTMX + Jinja2 テンプレート
 - Data: SQLite + SQLAlchemy ORM（WALモード）
-- Image Processing: PyMuPDF（PDF→画像）、OpenCV（マーク検出）
+- Image Processing: PyMuPDF（PDF→画像）、OpenCV（マーク検出・OMR）
+- OMR Template: ReportLab + qrcode（OMR採点欄テンプレートPDF生成）
 - Excel: openpyxl
 - Package Manager: uv
 - Portal統合: yossy-portal-lib（認証・base_href・CSP nonce・ヘルスチェック）
@@ -61,9 +62,10 @@ app/
 ├── dependencies.py      # require_auth / is_authenticated 依存関数
 ├── templates_config.py  # Jinja2Templates 共有インスタンス
 ├── core/checktest/      # チェックテスト処理ロジック（CLI・Web両用）
-│   ├── constants.py     # 定数 (THRESH, DPI, COLORS)
-│   ├── scanner.py       # pdf_to_images, find_answer_table
-│   ├── detector.py      # detect_scores（マーク検出）
+│   ├── constants.py     # 定数 (THRESH, DPI, COLORS, OMR設定)
+│   ├── scanner.py       # pdf_to_images(generator), find_answer_table
+│   ├── detector.py      # detect_scores（旧方式マーク検出、適応的閾値）
+│   ├── template_generator.py # OMRテンプレートPDF生成（ReportLab）
 │   ├── ocr.py           # ocr_name_and_total（氏名OCR）
 │   ├── processor.py     # process_page, load_config
 │   └── excel_writer.py  # write_excel
@@ -110,10 +112,35 @@ tests/                   # pytest テスト
 ### チェックテスト処理フロー
 
 1. テスト設定作成（クラス選択 + 大問定義）
-2. PDFアップロード（設定選択 + PDF送信）
-3. PDF→画像変換（PyMuPDF 300dpi）→ 右半分クロップ → テーブル検出 → マーク検出
-4. 結果レビュー（色分け表示、インライン編集、生徒紐付け）
-5. セッション確定 → Excel DL
+2. **テンプレートDL** → OMR採点欄PDFを生成・ダウンロード → Wordのp.4下部に貼り付け
+3. PDFアップロード（設定選択 + PDF送信、XHRで進捗表示）
+4. PDF→画像変換（PyMuPDF 300dpi、ジェネレータで省メモリ）→ 右半分クロップ → テーブル検出 → マーク検出
+5. 結果レビュー（色分け表示、インライン編集、生徒紐付け、診断画像表示）
+6. セッション確定 → Excel DL
+
+### OMR方式リニューアル（進行中）
+
+旧方式（小さな手書きマーク → 黒ピクセル比率検出）は精度が低いため、OMR方式に移行中。
+
+**完了:**
+- OMRテンプレートPDF生成（`template_generator.py`）: ReportLab + 日本語フォント + QRコード
+  - 四隅アライメントマーカー（透視変換用）
+  - 大問ごとの塗りつぶし円（直径5mm、間隔7mm）
+  - 氏名欄・コメント欄
+  - テスト設定から動的生成（大問数・配点自由）
+
+**未実装:**
+- OMR検出エンジン（`omr_detector.py`）: アライメント補正 + 円の塗りつぶし率判定
+- テンプレートDL UI: configs一覧にダウンロードボタン
+- Gemini OCR統合: 氏名・コメントの手書き読み取り
+- processor統合: OMR/旧方式の自動切り替え
+
+### スキャン改善（完了）
+
+- `pdf_to_images`: リスト一括読み込み → ジェネレータ（80ページ×50MB=4GB → 1ページずつ処理）
+- XHRアップロード: フォーム送信 → XHR + 進捗表示（タイムアウト回避）
+- 適応的閾値: 固定0.35 → 0.15 + 中央値×2.5フォールバック
+- デバッグ画像: 処理時にsheet/detected画像を生成、レビュー画面で「画像」リンクから確認可能
 
 ### 認証フロー
 
@@ -140,6 +167,7 @@ BEHIND_PORTAL=true                     # ポータル経由時（start-portal.sh
 **data/フォルダ**:
 - `student_manager.db` — 全データ（生徒・講座・出席・チェックテスト）
 - `temp_pdf/` — PDFアップロード一時保存
+- `debug_img/` — デバッグ画像（セッション別サブディレクトリ）
 
 ## 統合履歴
 

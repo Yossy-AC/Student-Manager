@@ -5,12 +5,12 @@ import os
 from datetime import date
 
 from fastapi import APIRouter, Depends, Form, Request, UploadFile
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from yossy_portal_lib import base_href as _base_href
 
-from app.config import TEMP_PDF_DIR
+from app.config import DEBUG_IMG_DIR, TEMP_PDF_DIR
 from app.database import get_db
 from app.dependencies import require_auth
 from app.models.checktest import (
@@ -52,6 +52,7 @@ async def upload_and_process(
     scan_date: str = Form(None),
     thresh: float = Form(0.35),
     no_crop: bool = Form(False),
+    debug: bool = Form(False),
     db: Session = Depends(get_db),
     _=Depends(require_auth),
 ):
@@ -81,22 +82,23 @@ async def upload_and_process(
         f.write(pdf_bytes)
 
     from app.core.checktest.processor import fail_result, process_page
-    from app.core.checktest.scanner import pdf_to_images
-    images = pdf_to_images(pdf_path)
+    from app.core.checktest.scanner import pdf_page_count, pdf_to_images
+    total_pages = pdf_page_count(pdf_path)
 
     session = ChecktestSession(
         config_id=config_id, scan_date=scan_date,
-        pdf_filename=pdf.filename, total_pages=len(images),
+        pdf_filename=pdf.filename, total_pages=total_pages,
     )
     db.add(session)
     db.flush()
 
+    debug_dir = str(DEBUG_IMG_DIR / str(session.id)) if debug else None
+
     ok_count = 0
     ng_count = 0
-    for i, img in enumerate(images):
-        page_num = i + 1
+    for page_num, img in pdf_to_images(pdf_path):
         try:
-            result = process_page(img, config_dict, page_num, thresh=thresh, no_crop=no_crop)
+            result = process_page(img, config_dict, page_num, thresh=thresh, no_crop=no_crop, debug_dir=debug_dir)
         except Exception as e:
             log.error(f"ページ {page_num} 処理エラー: {e}", exc_info=True)
             result = fail_result(page_num, len(questions))
@@ -194,3 +196,14 @@ async def confirm_session(request: Request, session_id: int, db: Session = Depen
     session.status = "confirmed"
     db.commit()
     return _redirect(request, f"checktest/results/sessions/{session_id}")
+
+
+@router.get("/api/scan/debug/{session_id}/{page_num}/{img_type}")
+async def debug_image(session_id: int, page_num: int, img_type: str, _=Depends(require_auth)):
+    """デバッグ画像を返す (img_type: sheet or detected)"""
+    if img_type not in ("sheet", "detected"):
+        return JSONResponse({"error": "invalid type"}, status_code=400)
+    path = DEBUG_IMG_DIR / str(session_id) / f"page_{page_num:03d}_{img_type}.jpg"
+    if not path.exists():
+        return JSONResponse({"error": "not found"}, status_code=404)
+    return FileResponse(str(path), media_type="image/jpeg")

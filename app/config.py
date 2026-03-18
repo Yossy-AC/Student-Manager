@@ -31,3 +31,7 @@ settings = Settings()
 # チェックテスト用: PDF一時保存ディレクトリ
 TEMP_PDF_DIR = Path(__file__).resolve().parent.parent / "data" / "temp_pdf"
 TEMP_PDF_DIR.mkdir(parents=True, exist_ok=True)
+
+# チェックテスト用: デバッグ画像ディレクトリ
+DEBUG_IMG_DIR = Path(__file__).resolve().parent.parent / "data" / "debug_img"
+DEBUG_IMG_DIR.mkdir(parents=True, exist_ok=True)
