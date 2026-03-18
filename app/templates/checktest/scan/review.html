@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% block title %}レビュー - セッション #{{ session.id }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .score-cell { cursor: pointer; min-width: 40px; text-align: center; }
+    .score-cell:hover { background: rgba(0, 113, 227, 0.1); }
+    .score-cell.edited { font-style: italic; }
+    .flag-normal { }
+    .flag-warn { background: #fff3cd; }
+    .flag-multi { background: #ffcc99; }
+    .flag-fail { background: #ff9999; }
+    .score-input { width: 50px; text-align: center; padding: 2px; }
+    .review-table { font-size: 0.85rem; }
+    .review-table th, .review-table td { padding: 0.4rem 0.5rem; white-space: nowrap; }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1>レビュー: {{ config.test_no }}
+    <span class="portal-badge portal-badge-info">{{ session.status }}</span>
+</h1>
+<p class="text-muted">
+    {{ session.pdf_filename }} | {{ session.scan_date }} |
+    {{ session.total_pages }}ページ (OK: {{ session.ok_pages }} / NG: {{ session.ng_pages }})
+</p>
+
+<div class="card" style="overflow-x: auto;">
+    <table class="review-table">
+        <thead>
+            <tr>
+                <th>P</th>
+                <th>氏名(OCR)</th>
+                {% if students %}<th>生徒</th>{% endif %}
+                {% for q in questions %}
+                <th>{{ q.label }}</th>
+                {% endfor %}
+                <th>合計</th>
+                <th>フラグ</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in pages %}
+            <tr class="{% if p.page_flag == '読み取り失敗' %}flag-fail{% elif p.page_flag != '正常' %}flag-warn{% endif %}"
+                id="page-row-{{ p.id }}">
+                <td>{{ p.page_number }}</td>
+                <td>{{ p.name_ocr or '不明' }}</td>
+                {% if students %}
+                <td>
+                    <select class="student-match" data-page-id="{{ p.id }}"
+                            style="font-size: 0.8rem; padding: 1px 4px; max-width: 120px;">
+                        <option value="">--</option>
+                        {% for s in students %}
+                        <option value="{{ s.id }}" {% if p.student_id == s.id %}selected{% endif %}>{{ s.name }}</option>
+                        {% endfor %}
+                    </select>
+                </td>
+                {% endif %}
+                {% for s in p.scores %}
+                <td class="score-cell {% if s.flag == '複数塗り' %}flag-multi{% endif %} {% if s.edited %}edited{% endif %}"
+                    data-score-id="{{ s.id }}" data-score-val="{{ s.score if s.score is not none else '' }}"
+                    id="score-{{ s.id }}">
+                    {% if s.score is not none %}{{ s.score }}{% else %}-{% endif %}
+                </td>
+                {% endfor %}
+                <td class="text-center" id="total-{{ p.id }}">
+                    {% if p.total_mark is not none %}{{ p.total_mark }}{% else %}-{% endif %}
+                </td>
+                <td>{{ p.page_flag }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="mt-2" style="display: flex; gap: 1rem; align-items: center;">
+    {% if session.status == 'review' %}
+    <form method="post" action="checktest/api/scan/{{ session.id }}/confirm" id="confirm-form">
+        <button type="submit" class="portal-btn portal-btn-primary">確定</button>
+    </form>
+    {% endif %}
+    <a href="checktest/api/export/{{ session.id }}/excel" class="portal-btn portal-btn-success">Excel DL</a>
+    <a href="checktest/scan" class="portal-btn portal-btn-ghost">戻る</a>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script nonce="{{ request.state.csp_nonce }}">
+// スコアセル クリック → インライン編集
+document.querySelector('.review-table').addEventListener('click', function(e) {
+    var td = e.target.closest('.score-cell');
+    if (!td || td.querySelector('input')) return;
+    var scoreId = td.dataset.scoreId;
+    var val = td.dataset.scoreVal;
+    var input = document.createElement('input');
+    input.type = 'number';
+    input.className = 'score-input';
+    input.value = val;
+    input.min = '0';
+    input.max = '100';
+    td.textContent = '';
+    td.appendChild(input);
+    input.focus();
+    input.addEventListener('blur', function() { saveScore(scoreId, input); });
+    input.addEventListener('keydown', function(ev) { if (ev.key === 'Enter') input.blur(); });
+});
+
+async function saveScore(scoreId, input) {
+    var val = input.value.trim();
+    var td = input.parentElement;
+    try {
+        var res = await fetch('checktest/api/scan/scores/' + scoreId, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({score: val === '' ? null : parseInt(val)}),
+        });
+        var data = await res.json();
+        td.textContent = val === '' ? '-' : val;
+        td.dataset.scoreVal = val;
+        td.classList.add('edited');
+        td.classList.remove('flag-multi');
+        var pageRow = td.closest('tr');
+        var totalCell = pageRow.querySelector('[id^="total-"]');
+        if (totalCell && data.total_mark !== undefined) {
+            totalCell.textContent = data.total_mark !== null ? data.total_mark : '-';
+        }
+        showToast('保存しました', 'success');
+    } catch (e) {
+        td.textContent = val === '' ? '-' : val;
+        showToast('保存に失敗しました', 'error');
+    }
+}
+
+// 生徒マッチング
+document.querySelectorAll('.student-match').forEach(function(sel) {
+    sel.addEventListener('change', function() {
+        matchStudent(this.dataset.pageId, this.value);
+    });
+});
+
+async function matchStudent(pageId, studentId) {
+    try {
+        await fetch('checktest/api/scan/pages/' + pageId + '/student', {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({student_id: studentId || null}),
+        });
+    } catch (e) {
+        showToast('保存に失敗しました', 'error');
+    }
+}
+
+// 確定フォーム
+var confirmForm = document.getElementById('confirm-form');
+if (confirmForm) {
+    confirmForm.addEventListener('submit', function(e) {
+        if (!window.confirm('この結果を確定しますか？確定後は編集できません。')) {
+            e.preventDefault();
+        }
+    });
+}
+</script>
+{% endblock %}

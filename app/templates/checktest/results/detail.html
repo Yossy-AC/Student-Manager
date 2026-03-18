@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}セッション詳細 #{{ session.id }}{% endblock %}
+
+{% block content %}
+<h1>{{ class_name }} - {{ config.test_no }}</h1>
+<p class="text-muted">
+    {{ session.scan_date }} | {{ session.total_pages }}ページ |
+    <span class="portal-badge {% if session.status == 'confirmed' %}portal-badge-ok{% else %}portal-badge-info{% endif %}">
+        {% if session.status == 'confirmed' %}確定{% else %}レビュー中{% endif %}
+    </span>
+</p>
+
+{% if stats %}
+<div class="grid-2 mb-2">
+    <div class="card">
+        <h3>集計</h3>
+        <table>
+            <tr><td>人数</td><td>{{ stats.count }}</td></tr>
+            <tr><td>平均</td><td>{{ stats.avg }}</td></tr>
+            <tr><td>最高</td><td>{{ stats.max }}</td></tr>
+            <tr><td>最低</td><td>{{ stats.min }}</td></tr>
+        </table>
+    </div>
+    <div class="card">
+        <h3>アクション</h3>
+        <p><a href="checktest/api/export/{{ session.id }}/excel" class="portal-btn portal-btn-success">Excel DL</a></p>
+        {% if session.status == 'review' %}
+        <p><a href="checktest/scan/{{ session.id }}/review" class="portal-btn portal-btn-primary">レビュー画面へ</a></p>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<div class="card" style="overflow-x: auto;">
+    <table>
+        <thead>
+            <tr>
+                <th>P</th>
+                <th>氏名</th>
+                {% for q in questions %}
+                <th>{{ q.label }}</th>
+                {% endfor %}
+                <th>合計</th>
+                <th>フラグ</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in pages %}
+            <tr class="{% if p.page_flag == '読み取り失敗' %}flag-fail{% elif p.page_flag != '正常' %}flag-warn{% endif %}">
+                <td>{{ p.page_number }}</td>
+                <td>{{ p.name_ocr or '不明' }}</td>
+                {% for s in p.scores %}
+                <td class="text-center">{% if s is not none %}{{ s }}{% else %}-{% endif %}</td>
+                {% endfor %}
+                <td class="text-center"><strong>{% if p.total_mark is not none %}{{ p.total_mark }}{% else %}-{% endif %}</strong></td>
+                <td>{{ p.page_flag }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="mt-2">
+    <a href="checktest/results" class="portal-btn portal-btn-ghost">戻る</a>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .flag-warn { background: #fff3cd; }
+    .flag-fail { background: #ff9999; }
+</style>
+{% endblock %}

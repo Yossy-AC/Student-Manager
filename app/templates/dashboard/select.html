@@ -1,15 +1,20 @@
 {% extends "base.html" %}
 
-{% block title %}生徒ダッシュボード - 生徒ID入力{% endblock %}
+{% block title %}生徒ダッシュボード - 生徒選択{% endblock %}
 
 {% block content %}
 <div class="select-container">
     <h1>成績ダッシュボード</h1>
-    <p>生徒IDを入力してください</p>
+    <p>生徒を選択してください</p>
 
-    <form class="select-form" onsubmit="goToDashboard(event)">
-        <label for="studentIdInput" class="sr-only">生徒ID</label>
-        <input type="text" id="studentIdInput" class="portal-input" placeholder="例: s001" pattern="[a-zA-Z0-9_-]+" required autofocus>
+    <form class="select-form" id="dashboard-form">
+        <label for="studentSelect" class="sr-only">生徒</label>
+        <select id="studentSelect" class="portal-input" required autofocus>
+            <option value="">選択してください</option>
+            {% for s in students %}
+            <option value="{{ s.id }}">{{ s.name }}（{{ s.id }}）</option>
+            {% endfor %}
+        </select>
         <button type="submit" class="portal-btn portal-btn-primary">表示</button>
     </form>
 </div>
@@ -37,13 +42,13 @@
     }
 </style>
 
-<script>
-function goToDashboard(e) {
+<script nonce="{{ request.state.csp_nonce }}">
+document.getElementById('dashboard-form').addEventListener('submit', function(e) {
     e.preventDefault();
-    const id = document.getElementById('studentIdInput').value.trim();
-    if (id && /^[a-zA-Z0-9_-]+$/.test(id)) {
+    var id = document.getElementById('studentSelect').value;
+    if (id) {
         window.location.href = 'dashboard/' + encodeURIComponent(id);
     }
-}
+});
 </script>
 {% endblock %}

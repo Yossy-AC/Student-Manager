@@ -3,28 +3,21 @@
     <div class="cards-grid">
         <div class="card">
             <h3>生徒数</h3>
-            <p class="card-value">3</p>
-            <p class="card-label">（サンプルデータ）</p>
+            <p class="card-value">{{ student_count }}</p>
         </div>
         <div class="card">
             <h3>講座数</h3>
-            <p class="card-value">7</p>
-            <p class="card-label">（サンプルデータ）</p>
+            <p class="card-value">{{ class_count }}</p>
         </div>
         <div class="card">
-            <h3>成績レコード</h3>
-            <p class="card-value">7</p>
-            <p class="card-label">（チェックテスト+模試）</p>
+            <h3>テストセッション</h3>
+            <p class="card-value">{{ session_count }}</p>
         </div>
         <div class="card">
             <h3>出席記録</h3>
-            <p class="card-value">6</p>
-            <p class="card-label">（サンプルデータ）</p>
+            <p class="card-value">{{ attendance_count }}</p>
         </div>
     </div>
-    <p style="margin-top: 2rem; color: #666;">
-        ※ Phase 1 では静的な表示です。Phase 2-3 で DB から動的に取得します。
-    </p>
 </div>
 
 <style>
@@ -57,11 +50,5 @@
         font-size: 2.5rem;
         font-weight: bold;
         margin: 0.5rem 0;
-    }
-
-    .card-label {
-        font-size: 0.8rem;
-        opacity: 0.8;
-        margin: 0;
     }
 </style>

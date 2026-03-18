@@ -1,11 +1,39 @@
 <div class="classes-tab">
     <h2>講座管理</h2>
 
-    <div style="margin-bottom: 2rem;">
-        <button class="btn btn-primary" onclick="alert('講座追加は Phase 3.5 で実装予定です')">新規講座を追加</button>
-    </div>
+    <details style="margin-bottom: 2rem;">
+        <summary class="btn btn-primary" style="cursor: pointer;">新規講座を追加</summary>
+        <form hx-post="api/classes"
+              hx-target="#classes-list"
+              hx-swap="innerHTML"
+              style="background: white; padding: 1.5rem; border-radius: 8px; margin-top: 1rem;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label>講座名 <span style="color: red;">*</span></label>
+                    <input type="text" name="name" required placeholder="例: 高3英語@難関大"
+                           style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+                <div class="form-group">
+                    <label>曜日</label>
+                    <input type="text" name="day" placeholder="例: 月"
+                           style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+                <div class="form-group">
+                    <label>時間</label>
+                    <input type="text" name="time" placeholder="例: 19:00-20:30"
+                           style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+                <div class="form-group">
+                    <label>定員</label>
+                    <input type="number" name="capacity" min="1" value="30"
+                           style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary" style="margin-top: 1rem; padding: 0.75rem 1.5rem;">追加</button>
+        </form>
+    </details>
 
-    <div hx-get="api/classes" hx-trigger="load">
+    <div id="classes-list" hx-get="api/classes" hx-trigger="load">
         <p style="color: #999;">講座一覧を読み込み中...</p>
     </div>
 </div>

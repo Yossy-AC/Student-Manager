@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}塾成績管理システム{% endblock %}</title>
     <base href="{{ base_href | default('/') }}">
-    <script>
+    <script nonce="{{ request.state.csp_nonce }}">
     (function(){var t=localStorage.getItem("portal-theme");if(!t)t=window.matchMedia&&window.matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light";document.documentElement.setAttribute("data-theme",t)})();
     </script>
 
@@ -14,7 +14,7 @@
     <link rel="stylesheet" href="/portal-assets/portal.css">
 
     <!-- HTMX -->
-    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <script nonce="{{ request.state.csp_nonce }}" src="https://unpkg.com/htmx.org@2.0.4"></script>
 
     <!-- App CSS -->
     <link rel="stylesheet" href="static/css/styles.css">
@@ -29,8 +29,8 @@
             <ul class="portal-nav-links">
                 <li><a href="/">ホーム</a></li>
                 <li><a href="admin">管理画面</a></li>
+                <li><a href="checktest/">チェックテスト</a></li>
                 <li><a href="dashboard">ダッシュボード</a></li>
-                <li><a href="upload">アップロード</a></li>
                 <li><a href="/auth/logout" class="portal-nav-logout">ログアウト</a></li>
             </ul>
             <button class="portal-theme-toggle" aria-label="テーマ切替">&#9790;</button>
@@ -42,8 +42,8 @@
     <div class="portal-mobile-menu">
         <a href="/">ホーム</a>
         <a href="admin">管理画面</a>
+        <a href="checktest/">チェックテスト</a>
         <a href="dashboard">ダッシュボード</a>
-        <a href="upload">アップロード</a>
         <a href="/auth/logout" class="portal-nav-logout">ログアウト</a>
     </div>
 
@@ -53,7 +53,7 @@
 
     <footer class="portal-footer">&copy; 2026 Yossy Portal</footer>
 
-    <script src="/portal-assets/portal-nav.js"></script>
+    <script nonce="{{ request.state.csp_nonce }}" src="/portal-assets/portal-nav.js"></script>
 
     {% block extra_js %}{% endblock %}
 </body>

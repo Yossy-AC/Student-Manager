@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}結果一覧{% endblock %}
+
+{% block content %}
+<h1>結果一覧</h1>
+
+{% if sessions %}
+<div class="card">
+    <table>
+        <thead>
+            <tr>
+                <th>日付</th>
+                <th>クラス</th>
+                <th>テスト</th>
+                <th>ページ</th>
+                <th>状態</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in sessions %}
+            <tr>
+                <td>{{ s.scan_date }}</td>
+                <td>{{ s.class_name }}</td>
+                <td>{{ s.test_no }}</td>
+                <td>{{ s.total_pages }} (OK:{{ s.ok_pages }} NG:{{ s.ng_pages }})</td>
+                <td>
+                    {% if s.status == 'confirmed' %}
+                    <span class="portal-badge portal-badge-ok">確定</span>
+                    {% else %}
+                    <span class="portal-badge portal-badge-info">レビュー中</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if s.status == 'review' %}
+                    <a href="checktest/scan/{{ s.id }}/review" class="portal-btn portal-btn-sm portal-btn-primary">レビュー</a>
+                    {% endif %}
+                    <a href="checktest/results/sessions/{{ s.id }}" class="portal-btn portal-btn-sm portal-btn-ghost">詳細</a>
+                    <a href="checktest/api/export/{{ s.id }}/excel" class="portal-btn portal-btn-sm portal-btn-success">Excel</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="card">
+    <p class="text-muted">まだ結果がありません。<a href="checktest/scan">スキャン</a>から始めてください。</p>
+</div>
+{% endif %}
+{% endblock %}

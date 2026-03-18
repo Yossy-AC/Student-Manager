@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}テスト設定管理{% endblock %}
+
+{% block content %}
+<h1>テスト設定管理</h1>
+
+<div class="card mb-2">
+    <a href="checktest/configs/new" class="portal-btn portal-btn-primary">新規設定作成</a>
+</div>
+
+{% if configs %}
+<div class="card">
+    <table>
+        <thead>
+            <tr>
+                <th>クラス</th>
+                <th>テスト回</th>
+                <th>大問数</th>
+                <th>満点</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in configs %}
+            <tr>
+                <td>{{ c.class_name }}</td>
+                <td>{{ c.test_no }}</td>
+                <td class="text-center">{{ c.n_questions }}</td>
+                <td class="text-center">{{ c.total_max }}</td>
+                <td>
+                    <a href="checktest/configs/{{ c.id }}/edit" class="portal-btn portal-btn-sm portal-btn-primary">編集</a>
+                    <form method="post" action="checktest/api/configs/{{ c.id }}/delete" style="display:inline;"
+                          class="delete-config-form">
+                        <button type="submit" class="portal-btn portal-btn-sm portal-btn-danger">削除</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="card">
+    <p class="text-muted">テスト設定がまだありません。「新規設定作成」から追加してください。</p>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script nonce="{{ request.state.csp_nonce }}">
+document.querySelectorAll('.delete-config-form').forEach(function(form) {
+    form.addEventListener('submit', function(e) {
+        if (!window.confirm('この設定を削除しますか？')) {
+            e.preventDefault();
+        }
+    });
+});
+</script>
+{% endblock %}

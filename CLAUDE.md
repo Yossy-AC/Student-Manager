@@ -2,25 +2,22 @@
 
 ## Project
 
-塾成績管理システム - 生徒向けダッシュボード、講師向け管理画面、CSV一括アップロード機能を持つWeb アプリケーション。
+塾の統合管理システム — 生徒・講座管理 + チェックテスト自動読み取り（OCR採点）。
 
-- Student Dashboard: `/dashboard/{student_id}` （個人成績推移、クラス平均との比較）
-- Teacher Admin Panel: `/admin` （成績入力、生徒・講座管理、6タブ構成）
-- CSV Upload: `/upload` （生徒・成績データの一括登録）
+- Admin Panel: `/admin` （生徒管理、講座管理、ダッシュボード統計）
+- Checktest: `/checktest/` （テスト設定、PDFスキャン、レビュー、結果一覧、Excel出力）
+- Student Dashboard: `/dashboard/{student_id}` （出席状況）
+- CLI: `tools/checktest_reader.py` （PDF→Excel直接変換）
 
-## Tech Stack (移行完了)
+## Tech Stack
 
-**旧スタック** (src/, public/ ディレクトリ): 参照のみ、本番利用しない
-- Frontend: Vanilla JavaScript (ES6+), HTML5, CSS3
-- Data: JSON files + localStorage キャッシング
-
-**現行スタック** (app/ ディレクトリ):
 - Backend: FastAPI + Uvicorn
 - Frontend: HTMX + Jinja2 テンプレート
-- Data: SQLite/PostgreSQL + SQLAlchemy ORM
+- Data: SQLite + SQLAlchemy ORM（WALモード）
+- Image Processing: PyMuPDF（PDF→画像）、OpenCV（マーク検出）
+- Excel: openpyxl
 - Package Manager: uv
-- Deployment: Railway/Render
-- Local Dev: `python -m uvicorn app.main:app --port 8000`
+- Portal統合: yossy-portal-lib（認証・base_href・CSP nonce・ヘルスチェック）
 
 ## Commands
 
@@ -28,145 +25,123 @@
 # 依存インストール（初回のみ）
 uv sync
 
-# DB 初期化（初回のみ）
-PYTHONIOENCODING=utf-8 python scripts/import_json.py
+# サーバー起動（スタンドアロン）
+SECRET_KEY=xxx ADMIN_PASSWORD=xxx python -m uvicorn app.main:app --port 8010
 
-# サーバー起動
-python -m uvicorn app.main:app --port 8000
+# ポータル経由（通常はこちら）
+# yossy-portal の start-portal.sh で一括起動される
+# 個別再起動: cd yossy-portal && bash restart.sh student-manager
 
-# Windows で自動再起動付き（Git Bash非推奨 → run.bat 使用）
-run.bat
+# テスト実行
+uv run pytest tests/ -v
+
+# CLI（PDF→Excel直接変換）
+uv run python tools/checktest_reader.py --pdf input/scan.pdf --config config/class_A.json --out output/results.xlsx
 ```
+
+## ポータル統合
+
+- **ポート**: 8010
+- **Caddyルート**: `handle_path /staff/student-manager*` → `reverse_proxy localhost:8010`（max_size 200MB）
+- **認証**: Caddy `forward_auth` → auth-gateway。`BEHIND_PORTAL=true` 時は自前認証スキップ
+- **yossy-portal-lib**: `portal_auth_middleware` + `csp_middleware` + `base_href` + `add_health_endpoint`
+- **CSP nonce**: 全 `<script>` タグに `nonce="{{ request.state.csp_nonce }}"` 付与
+- **旧checktest-reader**: student-managerに統合済み。`/staff/checktest*` ルートは廃止
 
 ## Architecture
 
-### ディレクトリ構成（現行スタック）
+### ディレクトリ構成
 
 ```
 app/
 ├── main.py              # FastAPI エントリーポイント
-├── config.py            # 環境変数 (SECRET_KEY, ADMIN_PASSWORD, DATABASE_URL)
-├── database.py          # SQLAlchemy セッション・テーブル生成
+├── config.py            # 環境変数 + TEMP_PDF_DIR
+├── database.py          # SQLAlchemy セッション・テーブル生成・WALモード
 ├── auth.py              # 認証ロジック (hmac.compare_digest)
 ├── dependencies.py      # require_auth / is_authenticated 依存関数
 ├── templates_config.py  # Jinja2Templates 共有インスタンス
+├── core/checktest/      # チェックテスト処理ロジック（CLI・Web両用）
+│   ├── constants.py     # 定数 (THRESH, DPI, COLORS)
+│   ├── scanner.py       # pdf_to_images, find_answer_table
+│   ├── detector.py      # detect_scores（マーク検出）
+│   ├── ocr.py           # ocr_name_and_total（氏名OCR）
+│   ├── processor.py     # process_page, load_config
+│   └── excel_writer.py  # write_excel
 ├── models/
 │   ├── class_.py        # Class テーブル
 │   ├── student.py       # Student テーブル
-│   ├── grade.py         # Grade テーブル（5科目スコア＋合計）
-│   └── attendance.py    # Attendance テーブル
+│   ├── attendance.py    # Attendance テーブル
+│   └── checktest.py     # ChecktestConfig/Question/Session/Page/Score テーブル
 ├── routers/
-│   ├── pages.py         # 画面遷移 (/, /login, /admin, /admin/tabs/{tab}, /dashboard/{id}, /upload)
+│   ├── pages.py         # 画面遷移 (/, /login, /admin, /admin/tabs/{tab}, /dashboard, /checktest/)
 │   ├── auth.py          # POST /auth/login, POST /auth/logout
 │   ├── students.py      # GET/POST /api/students
-│   ├── grades.py        # GET/POST /api/grades, GET /api/grades/student/{id}, /comparison/{id}, /advice/{id}
-│   ├── classes.py       # GET /api/classes, GET /api/classes/{id}/students
+│   ├── classes.py       # GET/POST /api/classes, GET /api/classes/{id}/students
 │   ├── attendance.py    # GET /api/attendance/student/{id}
-│   └── upload.py        # POST /api/upload/csv, POST /api/upload/save, GET /api/upload/template
-├── services/
-│   ├── grade_calculator.py  # 成績計算・クラス平均・出席率（8関数）
-│   └── csv_importer.py      # CSV解析・生徒IDマッチング・upsert保存
+│   ├── checktest_configs.py   # テスト設定 CRUD
+│   ├── checktest_scan.py      # PDFアップロード + 処理 + レビュー
+│   ├── checktest_results.py   # 結果一覧・詳細・集計
+│   └── checktest_export.py    # Excel ダウンロード
 └── templates/
     ├── base.html
     ├── login.html
-    ├── admin/          # 管理画面（6タブ）
-    ├── dashboard/      # 生徒ダッシュボード（4セクション）
-    ├── upload/
-    └── partials/       # HTMX 用 HTML 断片（grades_table, students_table 等 11ファイル）
+    ├── admin/          # 管理画面（4タブ: ダッシュボード、生徒、講座、レポート）
+    ├── dashboard/      # 生徒ダッシュボード（select.html + index.html）
+    ├── checktest/      # チェックテスト（index, configs, scan, results）
+    └── partials/       # HTMX 用 HTML 断片
 
-static/css/styles.css    # スタイル（.htmx-indicator 含む）
-scripts/import_json.py   # data/*.json → SQLite 移行スクリプト
+static/css/styles.css    # スタイル
+tools/checktest_reader.py # CLI エントリポイント
+tests/                   # pytest テスト
 ```
 
-### データモデル
+### DBスキーマ
 
-**grades テーブルスコア列**: `score_comprehension`, `score_unseen`, `score_grammar`, `score_vocabulary`, `score_listening`, `score_total`（各科目 0-20、合計 0-100）
+**students**: id(PK s001形式), name, name_kana, gender, high_school, class_id(FK), join_date 等
+**classes**: id(PK c001形式), name, day, time, capacity
+**attendance**: id(PK), student_id(FK), class_id(FK), date, status(出席/欠席/遅刻)
 
-**students.id 採番**: `s001`, `s002`, ... 最大値+1 で自動採番
+**checktest_configs**: id(PK), class_id, test_no（クラス×回次、ユニーク制約）
+**checktest_questions**: id(PK), config_id(FK), question_index, label, max_score
+**checktest_sessions**: id(PK), config_id(FK), scan_date, pdf_filename, total/ok/ng_pages, status(review/confirmed)
+**checktest_pages**: id(PK), session_id(FK), page_number, student_name_ocr, student_id(nullable), total_mark, page_flag
+**checktest_scores**: id(PK), page_id(FK), question_index, score(nullable=複数塗り), flag, edited
 
-**grades.id 採番**: `g_{student_id}_{date}_{lesson_number}` 形式
+### チェックテスト処理フロー
 
-### CSV フォーマット
-
-```
-【生徒データ】セクション
-教室コード,教室,氏名,ｼﾒｲ,性,高校,学科,学校ｸﾗｽ,部活,志望大学,志望学部
-
-【チェックテスト成績】セクション
-氏名,授業回,授業内容,日付,授業内容の理解,初見問題,文法語法,単語,リスニング,合計
-```
-
-テンプレートダウンロード: GET `/api/upload/template`
-
-### HTMX パターン
-
-**タブ切り替え（管理画面）**:
-```html
-<button hx-get="/admin/tabs/grades" hx-target="#tab-content" hx-swap="innerHTML">成績入力</button>
-```
-
-**連鎖セレクト（講座→生徒）**:
-```html
-<select hx-get="/api/classes/{id}/students" hx-trigger="change" hx-target="#student-select">
-```
-
-**遅延ロード**:
-```html
-<section hx-get="/api/grades/comparison/{id}" hx-trigger="load" hx-swap="innerHTML">
-```
+1. テスト設定作成（クラス選択 + 大問定義）
+2. PDFアップロード（設定選択 + PDF送信）
+3. PDF→画像変換（PyMuPDF 300dpi）→ 右半分クロップ → テーブル検出 → マーク検出
+4. 結果レビュー（色分け表示、インライン編集、生徒紐付け）
+5. セッション確定 → Excel DL
 
 ### 認証フロー
 
 1. 未認証 → `/login` にリダイレクト
 2. POST `/auth/login` で `hmac.compare_digest(password, settings.ADMIN_PASSWORD)`
-3. セッション `authenticated=True` 設定
-4. `require_auth` 依存関数が全 /api/* と /admin エンドポイントを保護
+3. `require_auth` 依存関数が全 /api/* と /admin エンドポイントを保護
+4. ポータル経由: `BEHIND_PORTAL=true` + `X-Portal-Role` で認証バイパス
 
 ## Key Details
 
 **セキュリティ**:
 - パスワード比較: `hmac.compare_digest`（タイミング攻撃対策）
 - テンプレート: Jinja2 オートエスケープ（XSS対策）
-- エラー詳細: 外部には一般メッセージのみ、内部はログ出力
-- CSV プレビューキャッシュ: UUID キーをセッションに保存（外部改ざん防止）
+- PDF一時ファイル: `data/temp_pdf/`に保存、処理後削除
 
 **環境変数** (.env):
 ```
-SECRET_KEY=your-secret-key-here
-ADMIN_PASSWORD=your-admin-password-here
+SECRET_KEY=your-secret-key-here        # スタンドアロン時のみ必須
+ADMIN_PASSWORD=your-admin-password-here # スタンドアロン時のみ必須
 DATABASE_URL=sqlite:///./data/student_manager.db
+BEHIND_PORTAL=true                     # ポータル経由時（start-portal.shで自動設定）
 ```
 
 **data/フォルダ**:
-- `student_manager.db` をローカル保存
-- セットアップ: `uv sync`（依存インストール）
+- `student_manager.db` — 全データ（生徒・講座・出席・チェックテスト）
+- `temp_pdf/` — PDFアップロード一時保存
 
-**Windows での起動注意**:
-- `--reload` フラグは Windows で multiprocessing エラーが発生する場合あり
-- 推奨: `python -m uvicorn app.main:app --port 8000`（リロードなし）
-- または: `run.bat`
+## 統合履歴
 
-## Migration to FastAPI + HTMX + uv
-
-### Status（全フェーズ完了）
-
-- **Phase 1**: ✅ 基盤セットアップ (pyproject.toml, SQLAlchemy モデル, FastAPI ルーター, テンプレート)
-- **Phase 2**: ✅ 生徒ダッシュボード HTMX 実装 (grade_calculator.py, 動的セクション)
-- **Phase 3**: ✅ 管理画面 6タブ HTMX 実装 (成績入力, 生徒管理, 講座管理)
-- **Phase 4**: ✅ CSV アップロード機能 (csv_importer.py, プレビュー/保存ワークフロー)
-- **Phase 5**: ✅ 認証機能 (SessionMiddleware, hmac, require_auth)
-- **Phase 6**: ✅ Railway デプロイ設定 (railway.toml, Dockerfile, DEPLOYMENT.md)
-- **追加**: ✅ セキュリティ修正 (XSS対策, タイミング攻撃対策, エラー情報漏洩防止, templates_config.py分離, uv有効化)
-
-### Key Files
-
-- [app/main.py](app/main.py) - FastAPI エントリーポイント
-- [app/models/](app/models/) - SQLAlchemy モデル
-- [app/routers/](app/routers/) - API エンドポイント定義
-- [app/services/grade_calculator.py](app/services/grade_calculator.py) - 成績計算ロジック
-- [app/services/csv_importer.py](app/services/csv_importer.py) - CSV解析ロジック
-- [app/templates/](app/templates/) - Jinja2 テンプレート + HTMX
-- [app/templates_config.py](app/templates_config.py) - Jinja2Templates 共有インスタンス
-- [scripts/import_json.py](scripts/import_json.py) - JSON → SQLite 移行スクリプト
-- [QUICKSTART.md](QUICKSTART.md) - ローカル開発ガイド
-- [DEPLOYMENT.md](DEPLOYMENT.md) - Railway デプロイガイド
+- checktest-reader（旧ポート8007）を統合済み。旧 `/staff/checktest*` URLは廃止
+- 旧grades/csv_importer（固定5カラム成績）は削除済み（未使用だったため）

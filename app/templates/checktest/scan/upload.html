@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}PDF スキャン{% endblock %}
+
+{% block content %}
+<h1>PDF スキャン</h1>
+
+<div class="card">
+    <form method="post" action="checktest/api/scan/upload" enctype="multipart/form-data" id="scan-form">
+
+        <div class="mb-2">
+            <label><strong>1. クラス選択</strong></label><br>
+            <select id="class-select" style="width: 100%; max-width: 400px;"
+                    name="class_id_display">
+                <option value="">-- クラスを選択 --</option>
+                {% for c in classes %}
+                <option value="{{ c.id }}">{{ c.name }}</option>
+                {% endfor %}
+            </select>
+            {% if not classes %}
+            <p class="text-muted" style="margin-top: 0.3rem;">クラスが未登録です（student-manager で登録してください）</p>
+            {% endif %}
+        </div>
+
+        <div class="mb-2">
+            <label><strong>2. テスト設定</strong></label><br>
+            <select id="config-select" name="config_id" required style="width: 100%; max-width: 400px;">
+                <option value="">-- まずクラスを選択 --</option>
+            </select>
+        </div>
+
+        <div class="mb-2">
+            <label><strong>3. スキャン日</strong></label><br>
+            <input type="date" name="scan_date" value="{{ today }}" style="max-width: 200px;">
+        </div>
+
+        <div class="mb-2">
+            <label><strong>4. PDF ファイル</strong></label><br>
+            <div id="drop-zone" style="border: 2px dashed var(--p-border); border-radius: var(--p-radius-sm); padding: 2rem; text-align: center; cursor: pointer;">
+                <p>ここにPDFをドロップ、またはクリックして選択</p>
+                <input type="file" name="pdf" accept=".pdf" id="pdf-input" style="display: none;" required>
+                <p id="file-name" class="text-muted"></p>
+            </div>
+        </div>
+
+        <details class="mb-2">
+            <summary class="text-muted" style="cursor: pointer;">詳細設定</summary>
+            <div style="padding: 0.5rem 0;">
+                <label>閾値: <input type="number" name="thresh" value="0.35" step="0.05" min="0.1" max="0.9" style="width: 80px;"></label>
+                <label style="margin-left: 1rem;"><input type="checkbox" name="no_crop" value="true"> クロップなし</label>
+            </div>
+        </details>
+
+        <div class="mt-2">
+            <button type="submit" class="portal-btn portal-btn-primary" id="submit-btn">処理開始</button>
+            <span id="progress" class="text-muted" style="margin-left: 1rem; display: none;">処理中...</span>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script nonce="{{ request.state.csp_nonce }}">
+// HTMX: クラス選択でconfig_idのクエリパラメータを送る
+document.getElementById('class-select').addEventListener('change', function() {
+    const url = 'checktest/api/configs?class_id=' + this.value;
+    htmx.ajax('GET', url, {target: '#config-select', swap: 'innerHTML'});
+});
+
+// ドラッグ&ドロップ
+const dropZone = document.getElementById('drop-zone');
+const fileInput = document.getElementById('pdf-input');
+const fileName = document.getElementById('file-name');
+
+dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.style.borderColor = 'var(--p-accent)'; });
+dropZone.addEventListener('dragleave', () => { dropZone.style.borderColor = 'var(--p-border)'; });
+dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.style.borderColor = 'var(--p-border)';
+    if (e.dataTransfer.files.length) {
+        fileInput.files = e.dataTransfer.files;
+        fileName.textContent = e.dataTransfer.files[0].name;
+    }
+});
+fileInput.addEventListener('change', () => {
+    if (fileInput.files.length) fileName.textContent = fileInput.files[0].name;
+});
+
+// 送信時
+document.getElementById('scan-form').addEventListener('submit', function() {
+    document.getElementById('submit-btn').disabled = true;
+    document.getElementById('progress').style.display = 'inline';
+});
+</script>
+{% endblock %}

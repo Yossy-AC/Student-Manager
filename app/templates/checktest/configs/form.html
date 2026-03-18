@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}{% if config %}設定編集{% else %}新規設定作成{% endif %}{% endblock %}
+
+{% block content %}
+<h1>{% if config %}設定編集{% else %}新規設定作成{% endif %}</h1>
+
+<div class="card">
+    <form method="post" action="{% if config %}checktest/api/configs/{{ config.id }}{% else %}checktest/api/configs{% endif %}" id="config-form">
+
+        <div class="mb-2">
+            <label><strong>クラス</strong></label><br>
+            {% if config %}
+            <input type="hidden" name="class_id" value="{{ config.class_id }}">
+            <span>{{ config.class_id }}</span>
+            {% else %}
+            <select name="class_id" required style="width: 100%; max-width: 400px;">
+                <option value="">-- クラスを選択 --</option>
+                {% for c in classes %}
+                <option value="{{ c.id }}">{{ c.name }} ({{ c.id }})</option>
+                {% endfor %}
+            </select>
+            {% if not classes %}
+            <p class="text-muted" style="margin-top: 0.3rem;">クラスが未登録です（student-manager で登録してください）</p>
+            {% endif %}
+            {% endif %}
+        </div>
+
+        <div class="mb-2">
+            <label><strong>テスト回</strong></label><br>
+            <input type="text" name="test_no" value="{{ config.test_no if config else '第1回' }}"
+                   required placeholder="例: 第1回" style="max-width: 200px;">
+        </div>
+
+        <div class="mb-2">
+            <label><strong>大問構成</strong></label>
+            <table id="questions-table">
+                <thead>
+                    <tr>
+                        <th style="width: 40px;">#</th>
+                        <th>ラベル</th>
+                        <th style="width: 100px;">配点</th>
+                        <th style="width: 50px;"></th>
+                    </tr>
+                </thead>
+                <tbody id="questions-body">
+                    {% for q in questions %}
+                    <tr class="question-row">
+                        <td class="text-center q-index">{{ loop.index }}</td>
+                        <td><input type="text" name="q_label" value="{{ q.label }}" required style="width: 100%;"></td>
+                        <td><input type="number" name="q_max_score" value="{{ q.max_score }}" required min="1" max="100" style="width: 80px;"></td>
+                        <td class="text-center">
+                            <button type="button" class="portal-btn portal-btn-sm portal-btn-danger remove-row-btn">x</button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <button type="button" class="portal-btn portal-btn-sm portal-btn-ghost mt-2" id="add-row-btn">+ 大問追加</button>
+            <span id="total-display" class="text-muted" style="margin-left: 1rem;">合計: <strong id="total-score">0</strong> 点</span>
+        </div>
+
+        <div class="mt-2">
+            <button type="submit" class="portal-btn portal-btn-primary">{% if config %}更新{% else %}作成{% endif %}</button>
+            <a href="checktest/configs" class="portal-btn portal-btn-ghost" style="margin-left: 0.5rem;">キャンセル</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script nonce="{{ request.state.csp_nonce }}">
+let rowCount = {{ questions | length }};
+
+function addRow() {
+    rowCount++;
+    const tbody = document.getElementById('questions-body');
+    const tr = document.createElement('tr');
+    tr.className = 'question-row';
+    tr.innerHTML =
+        '<td class="text-center q-index">' + rowCount + '</td>' +
+        '<td><input type="text" name="q_label" value="大問' + rowCount + '" required style="width: 100%;"></td>' +
+        '<td><input type="number" name="q_max_score" value="20" required min="1" max="100" style="width: 80px;"></td>' +
+        '<td class="text-center"><button type="button" class="portal-btn portal-btn-sm portal-btn-danger remove-row-btn">x</button></td>';
+    tbody.appendChild(tr);
+    updateTotal();
+    renumber();
+}
+
+function removeRow(btn) {
+    const rows = document.querySelectorAll('.question-row');
+    if (rows.length <= 1) return;
+    btn.closest('tr').remove();
+    updateTotal();
+    renumber();
+}
+
+function renumber() {
+    document.querySelectorAll('.q-index').forEach(function(el, i) { el.textContent = i + 1; });
+    rowCount = document.querySelectorAll('.question-row').length;
+}
+
+function updateTotal() {
+    let total = 0;
+    document.querySelectorAll('input[name="q_max_score"]').forEach(function(el) {
+        total += parseInt(el.value) || 0;
+    });
+    document.getElementById('total-score').textContent = total;
+}
+
+// イベント委譲（動的生成された要素にも対応）
+document.getElementById('add-row-btn').addEventListener('click', addRow);
+document.getElementById('questions-body').addEventListener('click', function(e) {
+    if (e.target.closest('.remove-row-btn')) {
+        removeRow(e.target.closest('.remove-row-btn'));
+    }
+});
+
+// 初期計算 + リスナー
+updateTotal();
+document.getElementById('config-form').addEventListener('input', function(e) {
+    if (e.target.name === 'q_max_score') updateTotal();
+});
+</script>
+{% endblock %}

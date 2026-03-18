@@ -1,218 +1,38 @@
-# 塾 成績管理システム
+# student-manager
 
-## 概要
-地方塾の英語科講師用の**成績管理Web アプリケーション**です。
+塾の統合管理システム — 生徒・講座管理 + チェックテスト自動読み取り（OCR採点）。
 
-### 特徴
-- 📊 **生徒向けダッシュボード**：個人の成績推移、クラス平均との比較、AI アドバイス
-- 👨‍🏫 **講師向け管理画面**：成績入力、生徒管理、講座管理
-- 📱 **レスポンシブデザイン**：スマートフォンでも使用可能
-- ⚡ **Cloudflare 連携**：本番運用ではCloudflare Pages/Workers にデプロイ
+## 機能
 
----
+- **管理画面** (`/admin`): 生徒管理、講座管理、ダッシュボード統計
+- **チェックテスト** (`/checktest/`): テスト設定、PDFスキャン・OCR採点、結果レビュー、Excel出力
+- **生徒ダッシュボード** (`/dashboard/{student_id}`): 出席状況
+- **CLI** (`tools/checktest_reader.py`): PDF→Excel直接変換
 
-## 📂 プロジェクト構成
+## Tech Stack
 
-```
-juku-seiseki-admin/
-├── data/                      # データベース（JSON）
-│   ├── classes.json          # 講座情報
-│   ├── students.json         # 生徒情報
-│   ├── grades.json           # 成績データ
-│   └── attendance.json       # 出席記録
-├── public/                   # フロントエンド（HTML/CSS）
-│   ├── index.html            # 生徒向けダッシュボード
-│   ├── admin.html            # 講師向け管理画面
-│   └── styles.css            # スタイルシート
-├── src/                      # JavaScript ロジック
-│   ├── dataLoader.js         # データ読み込み・処理
-│   ├── dashboard.js          # 生徒ダッシュボード
-│   └── admin.js              # 講師管理画面
-├── package.json              # プロジェクト設定
-└── README.md                 # このファイル
-```
+- Backend: FastAPI + Uvicorn
+- Frontend: HTMX + Jinja2
+- Data: SQLite + SQLAlchemy ORM（WALモード）
+- Image Processing: PyMuPDF + OpenCV
+- Package Manager: uv
+- Portal統合: yossy-portal-lib
 
----
-
-## 🚀 セットアップ方法
-
-### 必要なもの
-- Node.js 16以上（パッケージ管理用）
-- Cloudflare アカウント（本番デプロイ用）
-- Git
-
-### ローカル実行
-
-1. **リポジトリをクローン**
-```bash
-git clone https://github.com/[USERNAME]/juku-seiseki-admin.git
-cd juku-seiseki-admin
-```
-
-2. **ローカルサーバーを起動**
-```bash
-# Python での方法（最も簡単）
-python -m http.server 8000
-
-# または Node.js の http-server を使用
-npx http-server
-```
-
-3. **ブラウザで開く**
-- 生徒向け: http://localhost:8000/public/index.html
-- 講師向け: http://localhost:8000/public/admin.html
-
----
-
-## 📊 データ構造
-
-### students.json
-```json
-{
-  "students": [
-    {
-      "id": "s001",
-      "name": "田中太郎",
-      "classId": "class001",
-      "joinDate": "2025-04-01"
-    }
-  ]
-}
-```
-
-### grades.json
-```json
-{
-  "grades": [
-    {
-      "id": "g001",
-      "studentId": "s001",
-      "classId": "class001",
-      "date": "2026-02-16",
-      "score": 78,
-      "maxScore": 100,
-      "testName": "チェックテスト #1"
-    }
-  ]
-}
-```
-
----
-
-## 🔧 使用技術
-
-| 項目 | 技術 |
-|------|------|
-| フロントエンド | HTML5, CSS3, Vanilla JavaScript |
-| データ保存 | JSON (Git管理) |
-| デプロイ | Cloudflare Pages / Workers |
-| バージョン管理 | Git / GitHub |
-
----
-
-## 📋 実装予定機能
-
-### フェーズ1（現在）
-- ✅ 基本的なダッシュボード UI
-- ✅ データ読み込み・処理ロジック
-- ✅ 生徒向けダッシュボード
-- ✅ 講師向け管理画面の骨組み
-
-### フェーズ2（Cloudflare連携）
-- ⏳ Cloudflare Pages へのデプロイ
-- ⏳ Cloudflare Workers での API 実装
-- ⏳ リアルタイムデータ更新
-
-### フェーズ3（高度な機能）
-- ⏳ Claude API による AI アドバイス（現在は静的）
-- ⏳ PDF レポート生成
-- ⏳ メール配信機能
-- ⏳ グラフ表示（Chart.js 等）
-
----
-
-## 🛠️ 開発方針
-
-### ローカル開発
-1. `public/` 内のHTMLを編集
-2. `src/` 内のJavaScriptを編集
-3. `data/` 内のJSONで動作確認
-
-### Cloudflare へのデプロイ
+## セットアップ
 
 ```bash
-# 1. Wrangler をインストール
-npm install -g wrangler
+# 依存インストール
+uv sync
 
-# 2. Cloudflare に認証
-wrangler login
+# サーバー起動（スタンドアロン）
+SECRET_KEY=xxx ADMIN_PASSWORD=xxx uv run uvicorn app.main:app --port 8010
 
-# 3. デプロイ
-wrangler deploy
+# テスト実行
+uv run pytest tests/ -v
 ```
 
----
+ポータル経由の場合は `yossy-portal/start-portal.sh` で一括起動されます。
 
-## 👨‍💻 主な関数
-
-### dataLoader.js
-- `DataLoader.loadAllData()` - すべてのJSONファイルを読み込む
-- `DataLoader.calculateClassAverage(classId)` - クラス平均を計算
-- `DataLoader.calculateStudentAverage(studentId)` - 生徒の平均を計算
-- `DataLoader.calculateAttendanceRate(studentId)` - 出席率を計算
-
-### dashboard.js
-- `displayDashboard(studentId)` - 生徒のダッシュボード表示
-- `displayGradesTable(studentId, grades)` - 成績表表示
-- `displayAdvice(studentId, grades)` - AI アドバイス生成
-
-### admin.js
-- `displayDashboard()` - 講師用ダッシュボード表示
-- `handleGradesSubmit()` - 成績入力処理
-- `displayStudents()` - 生徒一覧表示
-
----
-
-## 📝 利用シナリオ
-
-### 生徒の流れ
-1. 生徒が `index.html?studentId=s001` にアクセス
-2. 自分の成績推移を確認
-3. クラス平均との比較を確認
-4. AI からのアドバイスを参考に学習
-
-### 講師の流れ
-1. 講師が `admin.html` にアクセス
-2. チェックテストの成績を入力
-3. 生徒の進度管理を一元化
-4. 月間レポートを生成・配布
-
----
-
-## 🐛 既知の制限事項
-
-- ❌ 現在、データは成績読み込みのみ（編集は非永続）
-- ⏳ PDF 生成機能は未実装
-- ⏳ メール配信機能は未実装
-- ⏳ グラフ表示は未実装（次のフェーズで対応）
-
----
-
-## 🤝 今後の改改
-
-1. **バックエンド API 構築**：Cloudflare Workers で実装
-2. **データベース移行**：JSON → D1 (Cloudflare) への移行
-3. **認証機能**：パスワード保護の追加
-4. **通知機能**：保護者へのメール配信
-
----
-
-## 📧 サポート
-
-質問や改善提案は GitHub Issues で投稿してください。
-
----
-
-## 📄 ライセンス
+## ライセンス
 
 MIT License

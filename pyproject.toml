@@ -13,7 +13,15 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "passlib[bcrypt]>=1.7.4",
     "starlette>=0.41.0",
+    "yossy-portal-lib",
+    "pymupdf>=1.23.0",
+    "opencv-python-headless>=4.8.0",
+    "numpy>=1.24.0",
+    "openpyxl>=3.1.0",
 ]
+
+[tool.uv.sources]
+yossy-portal-lib = { path = "../yossy-portal/lib" }
 
 [dependency-groups]
 dev = [
@@ -22,6 +30,9 @@ dev = [
     "pytest-asyncio>=0.24",
     "ruff>=0.8",
 ]
+
+[tool.setuptools.packages.find]
+include = ["app*"]
 
 [build-system]
 requires = ["setuptools", "wheel"]

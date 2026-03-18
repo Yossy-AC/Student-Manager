@@ -5,41 +5,11 @@
 {% block content %}
 <div class="dashboard-container">
     <header class="dashboard-header">
-        <h1>成績管理ダッシュボード</h1>
+        <h1>生徒ダッシュボード</h1>
         <p class="student-info">
             生徒ID: <span id="studentId">{{ student_id }}</span>
         </p>
     </header>
-
-    <!-- 成績テーブル -->
-    <section class="grades-section">
-        <h2>チェックテスト成績推移</h2>
-        <div hx-get="api/grades/student/{{ student_id }}"
-             hx-trigger="load"
-             hx-swap="innerHTML">
-            <p class="loading">読み込み中...</p>
-        </div>
-    </section>
-
-    <!-- クラス比較 -->
-    <section class="comparison-section">
-        <h2>クラス平均との比較</h2>
-        <div hx-get="api/grades/comparison/{{ student_id }}"
-             hx-trigger="load"
-             hx-swap="innerHTML">
-            <p class="loading">計算中...</p>
-        </div>
-    </section>
-
-    <!-- アドバイス -->
-    <section class="advice-section">
-        <h2>学習アドバイス</h2>
-        <div hx-get="api/grades/advice/{{ student_id }}"
-             hx-trigger="load"
-             hx-swap="innerHTML">
-            <p class="loading">分析中...</p>
-        </div>
-    </section>
 
     <!-- 出席状況 -->
     <section class="attendance-section">
@@ -49,6 +19,12 @@
              hx-swap="innerHTML">
             <p class="loading">読み込み中...</p>
         </div>
+    </section>
+
+    <!-- チェックテスト結果へのリンク -->
+    <section>
+        <h2>チェックテスト成績</h2>
+        <p>チェックテストの結果は<a href="checktest/results" style="color: var(--p-accent, #0071e3);">結果一覧</a>から確認できます。</p>
     </section>
 </div>
 

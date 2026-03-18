@@ -14,12 +14,6 @@
             ダッシュボード
         </button>
         <button class="tab-btn"
-                hx-get="admin/tabs/grades"
-                hx-target="#tab-content"
-                hx-swap="innerHTML">
-            成績入力
-        </button>
-        <button class="tab-btn"
                 hx-get="admin/tabs/students"
                 hx-target="#tab-content"
                 hx-swap="innerHTML">
@@ -32,12 +26,6 @@
             講座管理
         </button>
         <button class="tab-btn"
-                hx-get="admin/tabs/upload"
-                hx-target="#tab-content"
-                hx-swap="innerHTML">
-            アップロード
-        </button>
-        <button class="tab-btn"
                 hx-get="admin/tabs/reports"
                 hx-target="#tab-content"
                 hx-swap="innerHTML">
@@ -46,9 +34,11 @@
         <span id="loading-indicator" class="htmx-indicator">読み込み中...</span>
     </div>
 
-    <div id="tab-content">
-        <!-- Phase 3 で実装: 初期タブコンテンツがここに差し込まれる -->
-        <p>管理画面の実装は Phase 2-3 で進みます</p>
+    <div id="tab-content"
+         hx-get="admin/tabs/dashboard"
+         hx-trigger="load"
+         hx-swap="innerHTML">
+        <p style="color: #999;">読み込み中...</p>
     </div>
 </div>
 
@@ -104,4 +94,13 @@
         display: block;
     }
 </style>
+
+<script nonce="{{ request.state.csp_nonce }}">
+document.querySelector('.nav-tabs').addEventListener('click', function(e) {
+    var btn = e.target.closest('.tab-btn');
+    if (!btn) return;
+    document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+});
+</script>
 {% endblock %}

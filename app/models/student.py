@@ -20,5 +20,4 @@ class Student(Base):
     join_date = Column(Date)
 
     class_ = relationship("Class", backref="students")
-    grades = relationship("Grade", back_populates="student")
     attendance = relationship("Attendance", back_populates="student")
