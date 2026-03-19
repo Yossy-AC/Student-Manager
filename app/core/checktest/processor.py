@@ -8,7 +8,7 @@ from typing import Optional
 import cv2
 import numpy as np
 
-from .constants import DEFAULT_MARK_THRESH
+from .constants import DEFAULT_MARK_THRESH, OMR_MARK_THRESH
 from .detector import detect_scores
 from .ocr import ocr_name_and_total
 from .scanner import find_answer_table, get_score_sheet
@@ -34,14 +34,17 @@ def process_page(
     thresh: float = DEFAULT_MARK_THRESH,
     no_crop: bool = False,
     debug_dir: Optional[str] = None,
+    template_coords: Optional[dict] = None,
 ) -> dict:
     """
     1ページを処理して結果辞書を返す。
 
+    template_coords が指定された場合はOMR方式、それ以外は旧方式。
+
     Returns dict with keys:
         page, name, scores, total_mark, total_written, flags, page_flag
     """
-    log.info(f"ページ {page_num} 処理中...")
+    log.info(f"ページ {page_num} 処理中... ({'OMR' if template_coords else '旧方式'})")
     questions = config["questions"]
 
     # 採点シート取得
@@ -53,23 +56,35 @@ def process_page(
         crop_path = os.path.join(debug_dir, f"page_{page_num:03d}_sheet.jpg")
         cv2.imwrite(crop_path, cv2.cvtColor(sheet, cv2.COLOR_RGB2BGR))
 
-    # テーブル検出
-    table = find_answer_table(sheet)
-    if table is None:
-        log.warning(f"  ページ {page_num}: テーブル未検出 → スキップ")
-        return fail_result(page_num, len(questions))
+    if template_coords:
+        # --- OMR方式 ---
+        from .omr_detector import process_omr
 
-    log.info(f"  テーブル: x={table[0]}, y={table[1]}, w={table[2]}, h={table[3]}")
+        debug_path = None
+        if debug_dir:
+            debug_path = os.path.join(debug_dir, f"page_{page_num:03d}_detected.jpg")
 
-    # マーク検出
-    debug_path = None
-    if debug_dir:
-        debug_path = os.path.join(debug_dir, f"page_{page_num:03d}_detected.jpg")
+        omr_thresh = thresh if thresh != DEFAULT_MARK_THRESH else OMR_MARK_THRESH
+        scores, flags = process_omr(sheet, template_coords, questions,
+                                    thresh=omr_thresh, debug_path=debug_path)
+        name = ""
+        total_written = None
+        needs_check = False
+    else:
+        # --- 旧方式 ---
+        table = find_answer_table(sheet)
+        if table is None:
+            log.warning(f"  ページ {page_num}: テーブル未検出 → スキップ")
+            return fail_result(page_num, len(questions))
 
-    scores, flags = detect_scores(sheet, table, questions, thresh=thresh, debug_path=debug_path)
+        log.info(f"  テーブル: x={table[0]}, y={table[1]}, w={table[2]}, h={table[3]}")
 
-    # OCR（氏名・合計）
-    name, total_written, needs_check = ocr_name_and_total(sheet, table)
+        debug_path = None
+        if debug_dir:
+            debug_path = os.path.join(debug_dir, f"page_{page_num:03d}_detected.jpg")
+
+        scores, flags = detect_scores(sheet, table, questions, thresh=thresh, debug_path=debug_path)
+        name, total_written, needs_check = ocr_name_and_total(sheet, table)
 
     # マーク検出合計
     total_mark = sum(s for s in scores if s is not None) if all(s is not None for s in scores) else None
@@ -80,6 +95,8 @@ def process_page(
         flag_parts.append("要確認")
     if any(f == "複数塗り" for f in flags):
         flag_parts.append("複数塗り")
+    if any(f == "マーカー未検出" for f in flags):
+        flag_parts.append("マーカー未検出")
     if total_mark is not None and total_written is not None and total_mark != total_written:
         flag_parts.append("合計不一致")
     page_flag = " / ".join(flag_parts) if flag_parts else "正常"

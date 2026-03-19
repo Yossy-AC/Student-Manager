@@ -53,6 +53,7 @@ async def upload_and_process(
     thresh: float = Form(0.35),
     no_crop: bool = Form(False),
     debug: bool = Form(False),
+    use_omr: bool = Form(False),
     db: Session = Depends(get_db),
     _=Depends(require_auth),
 ):
@@ -83,6 +84,17 @@ async def upload_and_process(
 
     from app.core.checktest.processor import fail_result, process_page
     from app.core.checktest.scanner import pdf_page_count, pdf_to_images
+
+    # OMRモード: テンプレート座標を生成
+    template_coords = None
+    if use_omr:
+        from app.core.checktest.template_generator import generate_template_pdf
+        cls = db.query(Class).filter(Class.id == config.class_id).first()
+        class_name = cls.name if cls else config.class_id
+        _, template_coords = generate_template_pdf(
+            config.id, class_name, config.test_no, config_dict["questions"],
+        )
+
     total_pages = pdf_page_count(pdf_path)
 
     session = ChecktestSession(
@@ -98,7 +110,7 @@ async def upload_and_process(
     ng_count = 0
     for page_num, img in pdf_to_images(pdf_path):
         try:
-            result = process_page(img, config_dict, page_num, thresh=thresh, no_crop=no_crop, debug_dir=debug_dir)
+            result = process_page(img, config_dict, page_num, thresh=thresh, no_crop=no_crop, debug_dir=debug_dir, template_coords=template_coords)
         except Exception as e:
             log.error(f"ページ {page_num} 処理エラー: {e}", exc_info=True)
             result = fail_result(page_num, len(questions))

@@ -17,7 +17,6 @@ import os
 from typing import Any
 
 import qrcode
-from reportlab.lib.pagesizes import B5
 from reportlab.lib.units import mm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
@@ -31,14 +30,14 @@ from .constants import (
 
 log = logging.getLogger(__name__)
 
-# B5 縦 (182mm × 257mm) — B4見開きの右半分相当
-PAGE_W, PAGE_H = B5
+# 幅は固定、高さはコンテンツに応じて動的算出
+PAGE_W = 180 * mm
 
-# マージン
-MARGIN_TOP = 15 * mm
-MARGIN_BOTTOM = 12 * mm
-MARGIN_LEFT = 12 * mm
-MARGIN_RIGHT = 12 * mm
+# マージン（コンパクト化）
+MARGIN_TOP = 8 * mm
+MARGIN_BOTTOM = 6 * mm
+MARGIN_LEFT = 8 * mm
+MARGIN_RIGHT = 8 * mm
 
 # マーカー
 MARKER = OMR_MARKER_SIZE_MM * mm
@@ -49,7 +48,7 @@ BUBBLE_SPACING = OMR_BUBBLE_SPACING_MM * mm
 MAX_BUBBLES_PER_ROW = 11  # 0〜10 の 11 個
 
 # QRコード
-QR_SIZE = 20 * mm
+QR_SIZE = 15 * mm
 
 # 日本語フォント
 _JP_FONT_NAME = "Gothic"
@@ -89,12 +88,33 @@ def generate_template_pdf(
         coords_map: {"markers": [...], "bubbles": {"Q0": [{"value": 0, "cx": float, "cy": float}, ...], ...}}
     """
     _register_jp_font()
+
+    # --- ページ高さを動的算出 ---
+    row_height = BUBBLE_SPACING + 1 * mm
+    label_col_w = 22 * mm
+    field_box_h = 7 * mm
+
+    # ヘッダー部: マージン + QR(マーカーより大) + 余白
+    header_h = MARGIN_TOP + max(QR_SIZE, MARKER) + 2 * mm
+
+    # 大問部（常に1行）
+    questions_h = len(questions) * (row_height + 1 * mm)
+
+    # 氏名+コメント部
+    fields_h = 4 * mm + field_box_h + 2 * mm + field_box_h
+
+    # フッター: マーカー + マージン
+    footer_h = MARGIN_BOTTOM + MARKER + 2 * mm
+
+    page_h = header_h + questions_h + fields_h + footer_h
+
+    # --- Canvas作成 ---
     buf = io.BytesIO()
-    c = canvas.Canvas(buf, pagesize=B5)
+    c = canvas.Canvas(buf, pagesize=(PAGE_W, page_h))
 
     # 座標マップ（OMR検出時に使用）
     coords: dict[str, Any] = {
-        "page_size": {"w": float(PAGE_W), "h": float(PAGE_H)},
+        "page_size": {"w": float(PAGE_W), "h": float(page_h)},
         "markers": [],
         "qr": {},
         "bubbles": {},
@@ -104,8 +124,8 @@ def generate_template_pdf(
 
     # --- 四隅アライメントマーカー ---
     marker_positions = [
-        (MARGIN_LEFT, PAGE_H - MARGIN_TOP - MARKER),                    # 左上
-        (PAGE_W - MARGIN_RIGHT - MARKER, PAGE_H - MARGIN_TOP - MARKER), # 右上
+        (MARGIN_LEFT, page_h - MARGIN_TOP - MARKER),                    # 左上
+        (PAGE_W - MARGIN_RIGHT - MARKER, page_h - MARGIN_TOP - MARKER), # 右上
         (MARGIN_LEFT, MARGIN_BOTTOM),                                    # 左下
         (PAGE_W - MARGIN_RIGHT - MARKER, MARGIN_BOTTOM),                # 右下
     ]
@@ -117,47 +137,43 @@ def generate_template_pdf(
             "w": float(MARKER), "h": float(MARKER),
         })
 
-    # --- QRコード（左上マーカーの右隣） ---
+    # --- QRコード・ヘッダー（上端をマーカー上端に揃える） ---
+    top_line = page_h - MARGIN_TOP  # マーカー上端
     qr_data = json.dumps({"config_id": config_id})
     qr_img = _generate_qr_image(qr_data)
     qr_x = MARGIN_LEFT + MARKER + 3 * mm
-    qr_y = PAGE_H - MARGIN_TOP - QR_SIZE
+    qr_y = top_line - QR_SIZE  # QR上端 = top_line
     c.drawInlineImage(qr_img, qr_x, qr_y, QR_SIZE, QR_SIZE)
     coords["qr"] = {"x": float(qr_x), "y": float(qr_y), "size": float(QR_SIZE)}
 
-    # --- ヘッダー ---
-    header_y = PAGE_H - MARGIN_TOP - MARKER - 2 * mm
-    c.setFont(_JP_FONT_NAME, 9)
-    c.drawString(qr_x + QR_SIZE + 5 * mm, header_y - 5 * mm, f"{class_name}  {test_no}")
+    # 講座名・回次（上端をマーカー上端に揃え）
+    text_x = qr_x + QR_SIZE + 3 * mm
+    c.setFont(_JP_FONT_NAME, 8)
+    c.drawString(text_x, top_line - 3 * mm, f"{class_name}  {test_no}")
 
-    c.setFont(_JP_FONT_NAME, 7)
-    c.drawString(qr_x + QR_SIZE + 5 * mm, header_y - 11 * mm,
+    c.setFont(_JP_FONT_NAME, 6)
+    c.drawString(text_x, top_line - 8 * mm,
                  "該当する得点の○を黒く塗りつぶしてください")
 
-    # --- 採点欄ヘッダーの開始位置 ---
-    content_top = header_y - 18 * mm
+    # --- 採点欄の開始位置 ---
+    content_top = min(qr_y, top_line - MARKER) - 2 * mm
     content_left = MARGIN_LEFT + MARKER + 2 * mm
     content_right = PAGE_W - MARGIN_RIGHT - MARKER - 2 * mm
     available_width = content_right - content_left
 
     # --- 大問ごとのバブル配置 ---
-    label_width = 22 * mm  # ラベル列幅
-    bubble_area_left = content_left + label_width
+    bubble_area_left = content_left + label_col_w
     y_cursor = content_top
+
+    bubble_area_width = content_right - bubble_area_left
 
     for qi, q in enumerate(questions):
         label = q["label"]
         max_score = q["max_score"]
 
-        # 必要な行数
-        n_bubbles = max_score + 1  # 0〜max_score
-        if n_bubbles <= MAX_BUBBLES_PER_ROW:
-            n_rows = 1
-        else:
-            n_rows = 2
-
-        row_height = BUBBLE_SPACING + 2 * mm
-        block_height = n_rows * row_height
+        n_bubbles = max_score + 1
+        # 間隔を動的算出（全バブルが1行に収まるように）
+        q_spacing = min(BUBBLE_SPACING, bubble_area_width / n_bubbles)
 
         # ラベル描画
         c.setFont(_JP_FONT_NAME, 8)
@@ -165,29 +181,20 @@ def generate_template_pdf(
         c.setFillColorRGB(0, 0, 0)
         c.drawString(content_left, label_y, label)
 
-        # バブル描画
+        # バブル描画（常に1行）
         q_coords = []
         for i in range(n_bubbles):
-            if i < MAX_BUBBLES_PER_ROW:
-                row = 0
-                col = i
-            else:
-                row = 1
-                col = i - MAX_BUBBLES_PER_ROW
+            cx = bubble_area_left + i * q_spacing + q_spacing / 2
+            cy = y_cursor - row_height / 2
 
-            cx = bubble_area_left + col * BUBBLE_SPACING + BUBBLE_SPACING / 2
-            cy = y_cursor - row * row_height - row_height / 2
-
-            # 円（塗りつぶし枠）
             c.setStrokeColorRGB(0, 0, 0)
             c.setFillColorRGB(1, 1, 1)
             c.setLineWidth(0.5)
             c.circle(cx, cy, BUBBLE_R, fill=1, stroke=1)
 
-            # 値ラベル
-            c.setFont(_JP_FONT_NAME, 5)
+            c.setFont(_JP_FONT_NAME, 4)
             c.setFillColorRGB(0.4, 0.4, 0.4)
-            c.drawCentredString(cx, cy - 1.5 * mm, str(i))
+            c.drawCentredString(cx, cy - 0.5 * mm, str(i))
 
             q_coords.append({
                 "value": i,
@@ -197,38 +204,36 @@ def generate_template_pdf(
             })
 
         coords["bubbles"][f"Q{qi}"] = q_coords
-        y_cursor -= block_height + 3 * mm
+        y_cursor -= row_height + 1 * mm
 
-    # --- 氏名欄 ---
-    y_cursor -= 5 * mm
-    name_y = y_cursor
-    c.setFont(_JP_FONT_NAME, 8)
-    c.setFillColorRGB(0, 0, 0)
-    c.drawString(content_left, name_y, "氏 名:")
-    name_box_x = content_left + 18 * mm
-    name_box_w = available_width - 18 * mm
-    name_box_h = 8 * mm
+    # --- 氏名欄（ラベルとボックスを縦中央揃え） ---
+    y_cursor -= 4 * mm
+    name_box_y = y_cursor - field_box_h
+    name_box_x = content_left + label_col_w
+    name_box_w = (available_width - label_col_w) / 4
     c.setStrokeColorRGB(0, 0, 0)
     c.setLineWidth(0.3)
-    c.rect(name_box_x, name_y - 2 * mm, name_box_w, name_box_h, fill=0, stroke=1)
+    c.rect(name_box_x, name_box_y, name_box_w, field_box_h, fill=0, stroke=1)
+    c.setFont(_JP_FONT_NAME, 8)
+    c.setFillColorRGB(0, 0, 0)
+    name_label_y = name_box_y + field_box_h / 2 - 1.2 * mm
+    c.drawString(content_left, name_label_y, "氏 名:")
     coords["name_area"] = {
-        "x": float(name_box_x), "y": float(name_y - 2 * mm),
-        "w": float(name_box_w), "h": float(name_box_h),
+        "x": float(name_box_x), "y": float(name_box_y),
+        "w": float(name_box_w), "h": float(field_box_h),
     }
 
-    # --- コメント欄 ---
-    y_cursor = name_y - name_box_h - 6 * mm
-    comment_y = y_cursor
-    c.setFont(_JP_FONT_NAME, 8)
-    c.drawString(content_left, comment_y, "コメント:")
-    comment_box_x = content_left
-    comment_box_w = available_width
-    comment_box_h = 20 * mm
-    comment_box_y = comment_y - comment_box_h - 2 * mm
-    c.rect(comment_box_x, comment_box_y, comment_box_w, comment_box_h, fill=0, stroke=1)
+    # --- コメント欄（ラベル右側にボックス、氏名欄と同レイアウト） ---
+    y_cursor = name_box_y - 2 * mm
+    comment_box_y = y_cursor - field_box_h
+    comment_box_x = content_left + label_col_w
+    comment_box_w = available_width - label_col_w
+    c.rect(comment_box_x, comment_box_y, comment_box_w, field_box_h, fill=0, stroke=1)
+    comment_label_y = comment_box_y + field_box_h / 2 - 1.2 * mm
+    c.drawString(content_left, comment_label_y, "コメント:")
     coords["comment_area"] = {
         "x": float(comment_box_x), "y": float(comment_box_y),
-        "w": float(comment_box_w), "h": float(comment_box_h),
+        "w": float(comment_box_w), "h": float(field_box_h),
     }
 
     c.save()

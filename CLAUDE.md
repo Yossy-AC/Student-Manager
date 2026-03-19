@@ -47,7 +47,7 @@ uv run python tools/checktest_reader.py --pdf input/scan.pdf --config config/cla
 - **認証**: Caddy `forward_auth` → auth-gateway。`BEHIND_PORTAL=true` 時は自前認証スキップ
 - **yossy-portal-lib**: `portal_auth_middleware` + `csp_middleware` + `base_href` + `add_health_endpoint`
 - **CSP nonce**: 全 `<script>` タグに `nonce="{{ request.state.csp_nonce }}"` 付与
-- **旧checktest-reader**: student-managerに統合済み。`/staff/checktest*` ルートは廃止
+- **チェックテスト**: `/checktest/` 配下でテスト設定・PDFスキャン・結果一覧・Excel出力を提供
 
 ## Architecture
 
@@ -65,6 +65,7 @@ app/
 │   ├── constants.py     # 定数 (THRESH, DPI, COLORS, OMR設定)
 │   ├── scanner.py       # pdf_to_images(generator), find_answer_table
 │   ├── detector.py      # detect_scores（旧方式マーク検出、適応的閾値）
+│   ├── omr_detector.py  # OMR方式検出（マーカー検出・透視変換・バブル判定）
 │   ├── template_generator.py # OMRテンプレートPDF生成（ReportLab）
 │   ├── ocr.py           # ocr_name_and_total（氏名OCR）
 │   ├── processor.py     # process_page, load_config
@@ -118,22 +119,33 @@ tests/                   # pytest テスト
 5. 結果レビュー（色分け表示、インライン編集、生徒紐付け、診断画像表示）
 6. セッション確定 → Excel DL
 
-### OMR方式リニューアル（進行中）
+### OMR方式リニューアル（完了）
 
-旧方式（小さな手書きマーク → 黒ピクセル比率検出）は精度が低いため、OMR方式に移行中。
+旧方式（小さな手書きマーク → 黒ピクセル比率検出）は精度が低いため、OMR方式に移行。
 
-**完了:**
-- OMRテンプレートPDF生成（`template_generator.py`）: ReportLab + 日本語フォント + QRコード
-  - 四隅アライメントマーカー（透視変換用）
-  - 大問ごとの塗りつぶし円（直径5mm、間隔7mm）
-  - 氏名欄・コメント欄
-  - テスト設定から動的生成（大問数・配点自由）
+**テンプレートPDF生成（`template_generator.py`）:**
+- 四隅アライメントマーカー（8mm黒正方形、透視変換用）
+- QRコード（config_idエンコード、15mm）
+- 大問ごとの塗りつぶし円（直径3mm、間隔5mm、常に1行配置）
+  - バブル数が多い場合は間隔を自動圧縮して1行に収める
+- 氏名欄（1/4幅）・コメント欄（ラベル右側配置、縦中央揃え）
+- ページ高さは内容量に応じて動的算出（余白最小化）
+- 幅180mm固定、A4下半分に貼付 → B4/2in1印刷の運用
+
+**検出エンジン（`omr_detector.py`）:**
+- OMR検出エンジン（`omr_detector.py`）: QR検出 + 4隅マーカー検出 + 透視変換 + バブル塗りつぶし率判定
+  - `detect_qr()`: OpenCV QRCodeDetector でconfig_id自動取得
+  - `find_alignment_markers()`: 二値化→輪郭→正方形フィルタ→4隅割当
+  - `rectify_image()`: cv2.getPerspectiveTransform で正規化
+  - `detect_bubble_fills()`: 円形ROI内の黒ピクセル率 + `_find_marked_cells`再利用（適応的閾値）
+  - `process_omr()`: 上記を統合するメインエントリ
+- テンプレートDL: `GET /api/configs/{id}/template` + configs一覧にDLボタン
+- processor統合: `process_page(template_coords=...)` でOMR/旧方式を切り替え
+- スキャンUI: 「OMRテンプレート使用」チェックボックス（閾値自動切替 0.15↔0.35）
 
 **未実装:**
-- OMR検出エンジン（`omr_detector.py`）: アライメント補正 + 円の塗りつぶし率判定
-- テンプレートDL UI: configs一覧にダウンロードボタン
-- Gemini OCR統合: 氏名・コメントの手書き読み取り
-- processor統合: OMR/旧方式の自動切り替え
+- Gemini OCR統合: 氏名・コメントの手書き読み取り（OMRモード時）
+- QR自動検出: 現在は手動チェックボックスで切替（将来的にQRで自動判別）
 
 ### スキャン改善（完了）
 
@@ -171,5 +183,4 @@ BEHIND_PORTAL=true                     # ポータル経由時（start-portal.sh
 
 ## 統合履歴
 
-- checktest-reader（旧ポート8007）を統合済み。旧 `/staff/checktest*` URLは廃止
 - 旧grades/csv_importer（固定5カラム成績）は削除済み（未使用だったため）

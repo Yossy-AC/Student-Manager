@@ -42,10 +42,16 @@
             </div>
         </div>
 
+        <div class="mb-2">
+            <label><strong>5. 読み取り方式</strong></label><br>
+            <label><input type="checkbox" name="use_omr" value="true" id="omr-check"> OMRテンプレート使用</label>
+            <span class="text-muted" style="font-size: 0.85rem;">（テンプレDLで生成したOMR採点欄を使用した場合にチェック）</span>
+        </div>
+
         <details class="mb-2">
             <summary class="text-muted" style="cursor: pointer;">詳細設定</summary>
             <div style="padding: 0.5rem 0;">
-                <label>閾値: <input type="number" name="thresh" value="0.15" step="0.01" min="0.05" max="0.9" style="width: 80px;"></label>
+                <label>閾値: <input type="number" name="thresh" value="0.15" step="0.01" min="0.05" max="0.9" style="width: 80px;" id="thresh-input"></label>
                 <label style="margin-left: 1rem;"><input type="checkbox" name="no_crop" value="true"> クロップなし</label>
                 <label style="margin-left: 1rem;"><input type="checkbox" name="debug" value="true"> 診断画像を生成</label>
             </div>
@@ -65,6 +71,12 @@
 document.getElementById('class-select').addEventListener('change', function() {
     const url = 'checktest/api/configs?class_id=' + this.value;
     htmx.ajax('GET', url, {target: '#config-select', swap: 'innerHTML'});
+});
+
+// OMRモード切替 → 閾値を自動調整
+document.getElementById('omr-check').addEventListener('change', function() {
+    var threshInput = document.getElementById('thresh-input');
+    threshInput.value = this.checked ? '0.35' : '0.15';
 });
 
 // ドラッグ&ドロップ

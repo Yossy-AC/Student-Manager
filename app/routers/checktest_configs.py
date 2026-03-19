@@ -3,7 +3,7 @@
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy.orm import Session
 
 from yossy_portal_lib import base_href as _base_href
@@ -150,6 +150,35 @@ async def delete_config(request: Request, config_id: int, db: Session = Depends(
         db.delete(config)
         db.commit()
     return _redirect(request, "checktest/configs")
+
+
+# --- テンプレートDL ---
+@router.get("/api/configs/{config_id}/template")
+async def download_template(config_id: int, db: Session = Depends(get_db), _=Depends(require_auth)):
+    """OMRテンプレートPDFをダウンロード"""
+    from app.core.checktest.template_generator import generate_template_pdf
+
+    config = db.query(ChecktestConfig).filter(ChecktestConfig.id == config_id).first()
+    if not config:
+        return Response(status_code=404)
+
+    questions = [{"label": q.label, "max_score": q.max_score}
+                 for q in sorted(config.questions, key=lambda q: q.question_index)]
+    cls = db.query(Class).filter(Class.id == config.class_id).first()
+    class_name = cls.name if cls else config.class_id
+
+    pdf_bytes, _ = generate_template_pdf(config.id, class_name, config.test_no, questions)
+
+    from urllib.parse import quote
+    filename = f"OMR_{class_name}_{config.test_no}.pdf"
+    encoded = quote(filename)
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"attachment; filename*=UTF-8''{encoded}",
+        },
+    )
 
 
 # --- HTMX: クラスごとの設定リスト ---

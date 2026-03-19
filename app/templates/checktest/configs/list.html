@@ -28,6 +28,7 @@
                 <td class="text-center">{{ c.n_questions }}</td>
                 <td class="text-center">{{ c.total_max }}</td>
                 <td>
+                    <a href="checktest/api/configs/{{ c.id }}/template" class="portal-btn portal-btn-sm" download>テンプレDL</a>
                     <a href="checktest/configs/{{ c.id }}/edit" class="portal-btn portal-btn-sm portal-btn-primary">編集</a>
                     <form method="post" action="checktest/api/configs/{{ c.id }}/delete" style="display:inline;"
                           class="delete-config-form">
