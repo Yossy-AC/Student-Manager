@@ -153,7 +153,7 @@ def generate_template_pdf(
 
     c.setFont(_JP_FONT_NAME, 6)
     c.drawString(text_x, top_line - 8 * mm,
-                 "該当する得点の○を黒く塗りつぶしてください")
+                 "機械処理をします。得点は○を黒く塗りつぶし、文字は読みやすい字で記入してください。")
 
     # --- 採点欄の開始位置 ---
     content_top = min(qr_y, top_line - MARKER) - 2 * mm
